@@ -132,10 +132,13 @@ Begin
     Result := Format('%d.%d.%d.%d', [major, minor, release, build])
   Else
   Begin
+    // From https://docwiki.embarcadero.com/RADStudio/Alexandria/en/Version_Info
+
+    // Release = number of days since Jan 1 2000
+    // Build = number of seconds since midnight (00:00:00), divided by 2
+
     d := IncSecond(IncDay(EncodeDateTime(2000, 1, 1, 0, 0, 0, 0),
-      release), build);
-    If HourOf(d) < 5 Then
-      d := IncSecond(d, 65536);
+      release), build * 2);
     Result := FormatDateTime('yymmdd.hhmm', d);
   End;
 End;

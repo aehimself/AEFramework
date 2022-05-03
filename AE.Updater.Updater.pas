@@ -49,6 +49,7 @@ Type
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
     Property UpdateableFileVersions[Const inFileName: String]: TArray<UInt64>
       Read GetUpdateableFileVersions;
+  published
     Property UpdateFileEtag: String Read _updatefileetag Write _updatefileetag;
     Property UpdateFileURL: String Read _updatefileurl Write _updatefileurl;
   End;
@@ -56,14 +57,14 @@ Type
 Implementation
 
 Uses System.Net.URLClient, System.Net.HttpClient, AE.Misc.FileUtils,
-  System.IOUtils, System.Zip2;
+  System.IOUtils, System.Zip;
 
 Const
-  OLDVERSIONEXT = '.aeupdater.old';
+  OLDVERSIONEXT = '.aeupdater.tmp';
 
-  //
-  // EAEUpdaterException
-  //
+//
+// EAEUpdaterException
+//
 
 Constructor EAEUpdaterURLException.Create(Const inMessage: String;
   Const inURL: String = ''; Const inStatusCode: Integer = -1;
@@ -255,8 +256,9 @@ Begin
     ms.Free;
   End;
 
-  TFile.Move(ParamStr(0), ParamStr(0) + OLDVERSIONEXT);
-  TFile.WriteAllBytes(ParamStr(0), tb);
+  If TFile.Exists(inFileName) then
+    TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
+  TFile.WriteAllBytes(inFileName, tb);
 End;
 
 End.
