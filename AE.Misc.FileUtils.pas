@@ -7,21 +7,21 @@ Type
     Debug: Boolean;
     VersionNumber: UInt64;
     MajorVersion: Word;
+    MD5Hash: String;
     MinorVersion: Word;
     ReleaseVersion: Word;
     BuildNumber: Word;
-    VersionString: String End;
+    VersionString: String
+  End;
 
-    Function FileInfo(Const inFileName, inInfoName: String): String;
-    Function FileProduct(Const inFileName: String): String;
-    Function FileVersion(Const inFileName: String;
-      Const inTranslateDebug: Boolean = False): TFileVersion;
-    Function FileVersionToString(inFileVersion: UInt64;
-      Const inDebug: Boolean = False): String;
+Function FileInfo(Const inFileName, inInfoName: String): String;
+Function FileProduct(Const inFileName: String): String;
+Function FileVersion(Const inFileName: String; Const inTranslateDebug: Boolean = False): TFileVersion;
+Function FileVersionToString(inFileVersion: UInt64; Const inDebug: Boolean = False): String;
 
 Implementation
 
-Uses WinApi.Windows, System.SysUtils, System.DateUtils;
+Uses WinApi.Windows, System.SysUtils, System.DateUtils, System.Hash;
 
 Const
   MAJORDIV: UInt64 = 1000000000000000; // 100000^3
@@ -64,8 +64,7 @@ Begin
   Result := FileInfo(inFileName, 'ProductName');
 End;
 
-Function FileVersion(Const inFileName: String;
-  Const inTranslateDebug: Boolean = False): TFileVersion;
+Function FileVersion(Const inFileName: String; Const inTranslateDebug: Boolean = False): TFileVersion;
 Var
   len, n: Cardinal;
   buf, p: Pointer;
@@ -78,6 +77,11 @@ Begin
   Result.ReleaseVersion := 0;
   Result.BuildNumber := 0;
   Result.VersionString := '';
+
+  If FileExists(inFileName) Then
+    Result.MD5Hash := THashMD5.GetHashStringFromFile(inFileName)
+  Else
+    Result.MD5Hash := '';
 
   n := GetFileVersionInfoSize(PChar(inFileName), len);
   If n = 0 Then
@@ -100,19 +104,18 @@ Begin
       Result.BuildNumber := LoWord(fi.dwFileVersionLS);
 
       Result.VersionNumber := Result.MajorVersion * MAJORDIV +
-        Result.MinorVersion * MINORDIV + Result.ReleaseVersion * RELEASEDIV +
+        Result.MinorVersion * MINORDIV +
+        Result.ReleaseVersion * RELEASEDIV +
         Result.BuildNumber;
 
-      Result.VersionString := FileVersionToString(Result.VersionNumber,
-        Result.Debug);
+      Result.VersionString := FileVersionToString(Result.VersionNumber, Result.Debug);
     End;
   Finally
     FreeMem(buf, n);
   End;
 End;
 
-Function FileVersionToString(inFileVersion: UInt64;
-  Const inDebug: Boolean = False): String;
+Function FileVersionToString(inFileVersion: UInt64; Const inDebug: Boolean = False): String;
 Var
   major, minor, release, build: Word;
   d: TDateTime;

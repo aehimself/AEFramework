@@ -111,7 +111,6 @@ Procedure TTimerThread.Execute;
 Var
   winterval, lastexectime: Int64;
   freq, scount, ecount: Int64;
-  res: Cardinal;
 Begin
   QueryPerformanceFrequency(freq);
 
@@ -137,15 +136,20 @@ Begin
       // Object_0 (Cancelled flag) was signaled - exit the thread immediately
       // Object_1 (Reset timer flag) was signaled - don't call the OnTimer event but go for the next cycle
       // Wait_Timeout - No flags were signaled, OnTimer event can be called
-      res := WaitForMultipleObjects(2, @_events[1], False, winterval);
-      If res = WAIT_OBJECT_0 Then
-        Break // Cancelled flag
-      Else If (res = WAIT_TIMEOUT) And Self.Enabled Then
-      Begin
-        QueryPerformanceCounter(scount);
-        Synchronize(_ontimer);
-        QueryPerformanceCounter(ecount);
-        lastexectime := 1000 * (ecount - scount) Div freq;
+
+      Case WaitForMultipleObjects(2, @_events[1], False, winterval) Of
+        WAIT_OBJECT_0: // Cancelled flag
+          Break;
+        WAIT_TIMEOUT:
+        Begin
+          If Self.Enabled Then
+          Begin
+            QueryPerformanceCounter(scount);
+            Synchronize(_ontimer);
+            QueryPerformanceCounter(ecount);
+            lastexectime := 1000 * (ecount - scount) Div freq;
+          End;
+        End;
       End;
     End;
   End;
