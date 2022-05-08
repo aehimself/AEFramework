@@ -105,20 +105,20 @@ Begin
   If Not _product.ContainsFile(fname) Then
     Raise EAEUpdaterException.Create(prod + ' does not contain a file named ' + fname);
 
-  For fname In _product.ProjectFiles Do
+  For fname In _product.ProductFiles Do
   Begin
     fver := FileVersion(fname);
-    pfile := _product.ProjectFile[fname];
+    pfile := _product.ProductFile[fname];
 
     For ver In pfile.Versions Do
     Begin
       pver := pfile.Version[ver];
 
-      If pver.DeploymentDate > 0 Then
+      If pver.DeploymentDate = 0 Then
         Continue;
 
       If (ver > fver.VersionNumber) Or
-        ((ver = fver.VersionNumber) And Not pver.FileHash.IsEmpty And (pver.FileHash <> fver.MD5Hash)) Then
+        ((ver = fver.VersionNumber) And Not pver.FileHash.IsEmpty And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
       Begin
         If Not _availableupdates.ContainsKey(fname) Then
           _availableupdates.Add(fname, TList<UInt64>.Create);
@@ -205,7 +205,7 @@ End;
 
 Function TAEUpdater.GetFileVersionChangelog(Const inFileName: String; Const inVersion: UInt64): String;
 Begin
-  Result := _product.ProjectFile[inFileName].Version[inVersion].Changelog;
+  Result := _product.ProductFile[inFileName].Version[inVersion].Changelog;
 End;
 
 Function TAEUpdater.GetUpdateableFiles: TArray<String>;
@@ -227,7 +227,7 @@ Var
 Begin
   ms := TMemoryStream.Create;
   Try
-    DownloadFile(_updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + _product.URL + '/' + _product.ProjectFile[inFileName].LatestVersion.ArchiveFileName, ms);
+    DownloadFile(_updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + _product.URL + '/' + _product.ProductFile[inFileName].Version[_product.ProductFile[inFileName].LatestVersion].ArchiveFileName, ms);
     ms.Position := 0;
 
     zip := TZIPFile.Create;

@@ -28,9 +28,7 @@ Type
   strict private
     _localfilename: String;
     _versions: TObjectDictionary<UInt64, TAEUpdaterProductFileVersion>;
-    Procedure SetVersion(Const inVersion: UInt64;
-      Const inFileVersion: TAEUpdaterProductFileVersion);
-    Function GetLatestVersion: TAEUpdaterProductFileVersion;
+    Procedure SetVersion(Const inVersion: UInt64; Const inFileVersion: TAEUpdaterProductFileVersion);
     Function GetVersion(Const inVersion: UInt64): TAEUpdaterProductFileVersion;
     Function GetVersions: TArray<UInt64>;
   strict protected
@@ -40,20 +38,19 @@ Type
   public
     Constructor Create; Override;
     Destructor Destroy; Override;
+    Procedure RenameVersion(Const inOldVersion, inNewVersion: UInt64);
     Function ContainsVersion(Const inVersion: UInt64): Boolean;
-    Property LatestVersion: TAEUpdaterProductFileVersion Read GetLatestVersion;
+    Function LatestVersion(Const inIncludeUndeployed: Boolean = False): UInt64;
     Property LocalFileName: String Read _localfilename Write _localfilename;
     Property Versions: TArray<UInt64> Read GetVersions;
-    Property Version[Const inVersion: UInt64]: TAEUpdaterProductFileVersion
-      Read GetVersion Write SetVersion;
+    Property Version[Const inVersion: UInt64]: TAEUpdaterProductFileVersion Read GetVersion Write SetVersion;
   End;
 
   TAEUpdaterProduct = Class(TAEApplicationSetting)
   strict private
     _productfiles: TObjectDictionary<String, TAEUpdaterProductFile>;
     _url: String;
-    Procedure SetProductFile(Const inFileName: String;
-      Const inProjectFile: TAEUpdaterProductFile);
+    Procedure SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
     Function GetProductFile(Const inFileName: String): TAEUpdaterProductFile;
     Function GetProductFiles: TArray<String>;
   strict protected
@@ -63,10 +60,10 @@ Type
   public
     Constructor Create; Override;
     Destructor Destroy; Override;
+    Procedure RenameProductFile(Const inOldName, inNewName: String);
     Function ContainsFile(Const inFileName: String): Boolean;
-    Property ProjectFile[Const inFileName: String]: TAEUpdaterProductFile
-      Read GetProductFile Write SetProductFile;
-    Property ProjectFiles: TArray<String> Read GetProductFiles;
+    Property ProductFile[Const inFileName: String]: TAEUpdaterProductFile Read GetProductFile Write SetProductFile;
+    Property ProductFiles: TArray<String> Read GetProductFiles;
     Property URL: String Read _url Write _url;
   End;
 
@@ -74,8 +71,7 @@ Type
   strict private
     _loaded: Boolean;
     _products: TObjectDictionary<String, TAEUpdaterProduct>;
-    Procedure SetProduct(Const inProductName: String;
-      Const inProduct: TAEUpdaterProduct);
+    Procedure SetProduct(Const inProductName: String; Const inProduct: TAEUpdaterProduct);
     Function GetProduct(Const inProductName: String): TAEUpdaterProduct;
     Function GetProducts: TArray<String>;
   strict protected
@@ -86,11 +82,11 @@ Type
     Constructor Create; Override;
     Destructor Destroy; Override;
     Procedure LoadFromStream(Const inStream: TStream);
+    Procedure RenameProduct(Const inOldName, inNewName: String);
     Procedure SaveToStream(Const outStream: TStream);
     Function ContainsProduct(Const inProductName: String): Boolean;
     Property IsLoaded: Boolean Read _loaded;
-    Property Product[Const inProductName: String]: TAEUpdaterProduct
-      Read GetProduct Write SetProduct;
+    Property Product[Const inProductName: String]: TAEUpdaterProduct Read GetProduct Write SetProduct;
     Property Products: TArray<String> Read GetProducts;
   End;
 
@@ -142,13 +138,11 @@ Begin
   inherited;
 
   If inJSON.GetValue(TXT_ARCHIVEFILENAME) <> nil Then
-    _archivefilename := (inJSON.GetValue(TXT_ARCHIVEFILENAME)
-      As TJSONString).Value;
+    _archivefilename := (inJSON.GetValue(TXT_ARCHIVEFILENAME) As TJSONString).Value;
   If inJSON.GetValue(TXT_CHANGELOG) <> nil Then
     _changelog := (inJSON.GetValue(TXT_CHANGELOG) As TJSONString).Value;
   If inJSON.GetValue(TXT_DEPLOYMENTDATE) <> nil Then
-    _deploymentdate := (inJSON.GetValue(TXT_DEPLOYMENTDATE) As TJSONNumber)
-      .AsType<UInt64>;
+    _deploymentdate := (inJSON.GetValue(TXT_DEPLOYMENTDATE) As TJSONNumber).AsType<UInt64>;
   If inJSON.GetValue(TXT_FILEHASH) <> nil Then
     _filehash := (inJSON.GetValue(TXT_FILEHASH) As TJSONString).Value;
 End;
@@ -157,8 +151,7 @@ End;
 // TAEProjectFile
 //
 
-Function TAEUpdaterProductFile.ContainsVersion(Const inVersion: UInt64)
-  : Boolean;
+Function TAEUpdaterProductFile.ContainsVersion(Const inVersion: UInt64): Boolean;
 Begin
   Result := _versions.ContainsKey(inVersion);
 End;
@@ -209,23 +202,18 @@ Begin
   End;
 End;
 
-Function TAEUpdaterProductFile.GetLatestVersion: TAEUpdaterProductFileVersion;
+Function TAEUpdaterProductFile.LatestVersion(Const inIncludeUndeployed: Boolean = False): UInt64;
 Var
-  pver, ver: UInt64;
+  ver: UInt64;
 Begin
-  Result := nil;
-  pver := 0;
+  Result := 0;
 
   For ver In _versions.Keys Do
-    If (ver > pver) And (_versions[ver].DeploymentDate > 0) Then
-    Begin
-      Result := _versions[ver];
-      pver := ver;
-    End;
+    If (ver > Result) And (inIncludeUndeployed Or (_versions[ver].DeploymentDate > 0)) Then
+      Result := ver;
 End;
 
-Function TAEUpdaterProductFile.GetVersion(Const inVersion: UInt64)
-  : TAEUpdaterProductFileVersion;
+Function TAEUpdaterProductFile.GetVersion(Const inVersion: UInt64): TAEUpdaterProductFileVersion;
 Begin
   If Not _versions.ContainsKey(inVersion) Then
     _versions.Add(inVersion, TAEUpdaterProductFileVersion.Create);
@@ -233,9 +221,20 @@ Begin
 End;
 
 Function TAEUpdaterProductFile.GetVersions: TArray<UInt64>;
+Var
+  a, b: Integer;
+  tmp: UInt64;
 Begin
   Result := _versions.Keys.ToArray;
-  TArray.Sort<UInt64>(Result);
+
+  For a := Low(Result) To High(Result) - 1 Do
+    For b := a + 1 To High(Result) Do
+      If Result[a] < Result[b] Then
+      Begin
+        tmp := Result[a];
+        Result[a] := Result[b];
+        Result[b] := tmp;
+      End;
 End;
 
 Procedure TAEUpdaterProductFile.InternalClear;
@@ -244,6 +243,11 @@ Begin
 
   _localfilename := '';
   _versions.Clear;
+End;
+
+Procedure TAEUpdaterProductFile.RenameVersion(Const inOldVersion, inNewVersion: UInt64);
+Begin
+ _versions.Add(inNewVersion, _versions.ExtractPair(inOldVersion).Value);
 End;
 
 Procedure TAEUpdaterProductFile.SetAsJSON(Const inJSON: TJSONObject);
@@ -256,13 +260,10 @@ Begin
     _localfilename := (inJSON.GetValue(TXT_FILENAME) As TJSONString).Value;
   If inJSON.GetValue(TXT_VERSIONS) <> nil Then
     For jp In (inJSON.GetValue(TXT_VERSIONS) As TJSONObject) Do
-      _versions.Add(UInt64.Parse(jp.JsonString.Value),
-        TAEUpdaterProductFileVersion.NewFromJSON(jp.JsonValue)
-        As TAEUpdaterProductFileVersion);
+      _versions.Add(UInt64.Parse(jp.JsonString.Value), TAEUpdaterProductFileVersion.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFileVersion);
 End;
 
-Procedure TAEUpdaterProductFile.SetVersion(Const inVersion: UInt64;
-  Const inFileVersion: TAEUpdaterProductFileVersion);
+Procedure TAEUpdaterProductFile.SetVersion(Const inVersion: UInt64; Const inFileVersion: TAEUpdaterProductFileVersion);
 Begin
   If Assigned(inFileVersion) Then
     _versions.AddOrSetValue(inVersion, inFileVersion)
@@ -305,7 +306,7 @@ Begin
   Begin
     jo := TJSONObject.Create;
     Try
-      For fname In Self.ProjectFiles Do
+      For fname In Self.ProductFiles Do
       Begin
         jofile := _productfiles[fname].AsJSON;
         If jofile.Count = 0 Then
@@ -325,8 +326,7 @@ Begin
     Result.AddPair(TXT_URL, _url);
 End;
 
-Function TAEUpdaterProduct.GetProductFile(Const inFileName: String)
-  : TAEUpdaterProductFile;
+Function TAEUpdaterProduct.GetProductFile(Const inFileName: String): TAEUpdaterProductFile;
 Begin
   If Not _productfiles.ContainsKey(inFileName) Then
     _productfiles.Add(inFileName, TAEUpdaterProductFile.Create);
@@ -347,6 +347,11 @@ Begin
   _url := ''
 End;
 
+Procedure TAEUpdaterProduct.RenameProductFile(Const inOldName, inNewName: String);
+Begin
+ _productfiles.Add(inNewName, _productfiles.ExtractPair(inOldName).Value);
+End;
+
 Procedure TAEUpdaterProduct.SetAsJSON(Const inJSON: TJSONObject);
 Var
   jp: TJSONPair;
@@ -355,9 +360,7 @@ Begin
 
   If inJSON.GetValue(TXT_FILES) <> nil Then
     For jp In (inJSON.GetValue(TXT_FILES) As TJSONObject) Do
-      _productfiles.Add(jp.JsonString.Value,
-        TAEUpdaterProductFile.NewFromJSON(jp.JsonValue)
-        As TAEUpdaterProductFile);
+      _productfiles.Add(jp.JsonString.Value, TAEUpdaterProductFile.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFile);
   If inJSON.GetValue(TXT_URL) <> nil Then
     _url := (inJSON.GetValue(TXT_URL) As TJSONString).Value;
 End;
@@ -456,9 +459,7 @@ Begin
 
   tb := Decompress(tb);
 
-  JSON := TJSONObject(TJSONObject.ParseJSONValue(tb, 0,
-    [TJSONObject.TJSONParseOption.IsUTF8,
-    TJSONObject.TJSONParseOption.RaiseExc]));
+  JSON := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
   Try
     Self.AsJSON := JSON;
 
@@ -466,6 +467,11 @@ Begin
   Finally
     FreeAndNil(JSON);
   End;
+End;
+
+Procedure TAEUpdateFile.RenameProduct(Const inOldName, inNewName: String);
+Begin
+ _products.Add(inNewName, _products.ExtractPair(inOldName).Value);
 End;
 
 Procedure TAEUpdateFile.SaveToStream(Const outStream: TStream);
@@ -494,8 +500,7 @@ begin
 
   If inJSON.GetValue(TXT_PRODUCTS) <> nil Then
     For jp In (inJSON.GetValue(TXT_PRODUCTS) As TJSONObject) Do
-      _products.Add(jp.JsonString.Value,
-        TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
+      _products.Add(jp.JsonString.Value, TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
 End;
 
 Procedure TAEUpdateFile.SetProduct(Const inProductName: String;
