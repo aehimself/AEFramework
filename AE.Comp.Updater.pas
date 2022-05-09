@@ -250,10 +250,10 @@ End;
 
 Function TAEUpdater.GetUpdateFileEtag: String;
 Begin
-  If _updatefileurl.IsEmpty Then
+  If Not (csDesigning In Self.ComponentState) And Not (csLoading In Self.ComponentState) And _updatefileurl.IsEmpty Then
     Raise EAEUpdaterException.Create('Update file URL is not defined!');
 
-  Result := _etags[_updatefileurl];
+  _etags.TryGetValue(_updatefileurl, Result);
 End;
 
 Procedure TAEUpdater.SetETag(Const inURL, inETag: String);
@@ -266,7 +266,7 @@ End;
 
 Procedure TAEUpdater.SetUpdateFileEtag(const inUpdateFileEtag: String);
 Begin
-  If _updatefileurl.IsEmpty Then
+  If Not (csDesigning In Self.ComponentState) And Not (csLoading In Self.ComponentState) And _updatefileurl.IsEmpty Then
     Raise EAEUpdaterException.Create('Update file URL is not defined!');
 
   _etags.AddOrSetValue(_updatefileurl, inUpdateFileEtag);
