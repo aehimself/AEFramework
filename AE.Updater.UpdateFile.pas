@@ -2,8 +2,7 @@
 
 Interface
 
-Uses AE.Application.Settings, System.JSON, System.Generics.Collections,
-  System.Classes;
+Uses AE.Application.Settings, System.JSON, System.Generics.Collections, System.Classes;
 
 Type
   TAEUpdaterProductFileVersion = Class(TAEApplicationSetting)
@@ -17,8 +16,7 @@ Type
     Procedure SetAsJSON(Const inJSON: TJSONObject); Override;
     Function GetAsJSON: TJSONObject; Override;
   public
-    Property ArchiveFileName: String Read _archivefilename
-      Write _archivefilename;
+    Property ArchiveFileName: String Read _archivefilename Write _archivefilename;
     Property Changelog: String Read _changelog Write _changelog;
     Property DeploymentDate: UInt64 Read _deploymentdate Write _deploymentdate;
     Property FileHash: String Read _filehash Write _filehash;
@@ -160,8 +158,7 @@ Constructor TAEUpdaterProductFile.Create;
 Begin
   inherited;
 
-  _versions := TObjectDictionary<UInt64, TAEUpdaterProductFileVersion>.Create
-    ([doOwnsValues]);
+  _versions := TObjectDictionary<UInt64, TAEUpdaterProductFileVersion>.Create([doOwnsValues]);
 End;
 
 Destructor TAEUpdaterProductFile.Destroy;
@@ -227,6 +224,7 @@ Var
 Begin
   Result := _versions.Keys.ToArray;
 
+  // Quickly sort the results in a descending order => latest version first
   For a := Low(Result) To High(Result) - 1 Do
     For b := a + 1 To High(Result) Do
       If Result[a] < Result[b] Then
@@ -284,8 +282,7 @@ Constructor TAEUpdaterProduct.Create;
 Begin
   inherited;
 
-  _productfiles := TObjectDictionary<String, TAEUpdaterProductFile>.Create
-    ([doOwnsValues]);
+  _productfiles := TObjectDictionary<String, TAEUpdaterProductFile>.Create([doOwnsValues]);
 End;
 
 Destructor TAEUpdaterProduct.Destroy;
@@ -349,7 +346,7 @@ End;
 
 Procedure TAEUpdaterProduct.RenameProductFile(Const inOldName, inNewName: String);
 Begin
- _productfiles.Add(inNewName, _productfiles.ExtractPair(inOldName).Value);
+  _productfiles.Add(inNewName, _productfiles.ExtractPair(inOldName).Value);
 End;
 
 Procedure TAEUpdaterProduct.SetAsJSON(Const inJSON: TJSONObject);
@@ -365,8 +362,7 @@ Begin
     _url := (inJSON.GetValue(TXT_URL) As TJSONString).Value;
 End;
 
-Procedure TAEUpdaterProduct.SetProductFile(Const inFileName: String;
-  Const inProjectFile: TAEUpdaterProductFile);
+Procedure TAEUpdaterProduct.SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
 Begin
   If Assigned(inProjectFile) Then
     _productfiles.AddOrSetValue(inFileName, inProjectFile)
@@ -387,8 +383,7 @@ Constructor TAEUpdateFile.Create;
 Begin
   inherited;
 
-  _products := TObjectDictionary<String, TAEUpdaterProduct>.Create
-    ([doOwnsValues]);
+  _products := TObjectDictionary<String, TAEUpdaterProduct>.Create([doOwnsValues]);
 End;
 
 Destructor TAEUpdateFile.Destroy;
@@ -425,8 +420,7 @@ Begin
   End;
 End;
 
-Function TAEUpdateFile.GetProduct(Const inProductName: String)
-  : TAEUpdaterProduct;
+Function TAEUpdateFile.GetProduct(Const inProductName: String): TAEUpdaterProduct;
 Begin
   If Not _products.ContainsKey(inProductName) Then
     _products.Add(inProductName, TAEUpdaterProduct.Create);
@@ -449,7 +443,7 @@ End;
 
 Procedure TAEUpdateFile.LoadFromStream(Const inStream: TStream);
 Var
-  JSON: TJSONObject;
+  json: TJSONObject;
   tb: TBytes;
 Begin
   Self.Clear;
@@ -459,13 +453,13 @@ Begin
 
   tb := Decompress(tb);
 
-  JSON := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
+  json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
   Try
-    Self.AsJSON := JSON;
+    Self.AsJSON := json;
 
     _loaded := True;
   Finally
-    FreeAndNil(JSON);
+    FreeAndNil(json);
   End;
 End;
 
@@ -476,15 +470,15 @@ End;
 
 Procedure TAEUpdateFile.SaveToStream(Const outStream: TStream);
 Var
-  JSON: TJSONObject;
+  json: TJSONObject;
   tb: TBytes;
 Begin
-  JSON := Self.AsJSON;
+  json := Self.AsJSON;
   Try
-    SetLength(tb, JSON.EstimatedByteSize);
-    SetLength(tb, JSON.ToBytes(tb, 0));
+    SetLength(tb, json.EstimatedByteSize);
+    SetLength(tb, json.ToBytes(tb, 0));
   Finally
-    FreeAndNil(JSON);
+    FreeAndNil(json);
   End;
 
   tb := Compress(tb);
@@ -503,8 +497,7 @@ begin
       _products.Add(jp.JsonString.Value, TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
 End;
 
-Procedure TAEUpdateFile.SetProduct(Const inProductName: String;
-  Const inProduct: TAEUpdaterProduct);
+Procedure TAEUpdateFile.SetProduct(Const inProductName: String; Const inProduct: TAEUpdaterProduct);
 Begin
   If Assigned(inProduct) Then
     _products.AddOrSetValue(inProductName, inProduct)

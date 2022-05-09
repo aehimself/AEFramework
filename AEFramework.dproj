@@ -123,7 +123,7 @@
         <DCCReference Include="3rdParty\StackTrace.pas"/>
         <DCCReference Include="AEFrameworkReg.pas"/>
         <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
-        <DCCReference Include="AE.Updater.Updater.pas"/>
+        <DCCReference Include="AE.Comp.Updater.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

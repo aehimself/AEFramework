@@ -6,8 +6,7 @@ Procedure Register;
 
 Implementation
 
-Uses System.Classes, AE.Comp.HeaderMenuItem, AE.Comp.PageControl,
-  AE.Comp.ComboBox, AE.Comp.ThreadedTimer, AE.Updater.Updater;
+Uses System.Classes, AE.Comp.HeaderMenuItem, AE.Comp.PageControl, AE.Comp.ComboBox, AE.Comp.ThreadedTimer, AE.Comp.Updater;
 
 Procedure Register;
 Begin

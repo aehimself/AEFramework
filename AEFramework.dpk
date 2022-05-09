@@ -50,6 +50,6 @@ contains
   StackTrace in '3rdParty\StackTrace.pas',
   AEFrameworkReg in 'AEFrameworkReg.pas',
   AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
-  AE.Updater.Updater in 'AE.Updater.Updater.pas';
+  AE.Comp.Updater in 'AE.Comp.Updater.pas';
 
 end.
