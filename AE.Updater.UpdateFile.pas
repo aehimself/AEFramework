@@ -68,6 +68,7 @@ Type
   TAEUpdateFile = Class(TAEApplicationSetting)
   strict private
     _loaded: Boolean;
+    _productbind: String;
     _products: TObjectDictionary<String, TAEUpdaterProduct>;
     Procedure SetProduct(Const inProductName: String; Const inProduct: TAEUpdaterProduct);
     Function GetProduct(Const inProductName: String): TAEUpdaterProduct;
@@ -85,6 +86,7 @@ Type
     Function ContainsProduct(Const inProductName: String): Boolean;
     Property IsLoaded: Boolean Read _loaded;
     Property Product[Const inProductName: String]: TAEUpdaterProduct Read GetProduct Write SetProduct;
+    Property ProductBind: String Read _productbind Write _productbind;
     Property Products: TArray<String> Read GetProducts;
   End;
 
@@ -383,6 +385,7 @@ Constructor TAEUpdateFile.Create;
 Begin
   inherited;
 
+  _productbind := '';
   _products := TObjectDictionary<String, TAEUpdaterProduct>.Create([doOwnsValues]);
 End;
 
@@ -494,7 +497,8 @@ begin
 
   If inJSON.GetValue(TXT_PRODUCTS) <> nil Then
     For jp In (inJSON.GetValue(TXT_PRODUCTS) As TJSONObject) Do
-      _products.Add(jp.JsonString.Value, TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
+      If _productbind.IsEmpty Or (_productbind = jp.JsonString.Value) Then
+        _products.Add(jp.JsonString.Value, TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
 End;
 
 Procedure TAEUpdateFile.SetProduct(Const inProductName: String; Const inProduct: TAEUpdaterProduct);

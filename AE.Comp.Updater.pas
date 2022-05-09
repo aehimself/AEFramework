@@ -24,7 +24,6 @@ Type
   strict private
     _availableupdates: TObjectDictionary<String, TList<UInt64>>;
     _etags: TDictionary<String, String>;
-    _filterforcurrentproduct: Boolean;
     _httpclient: TNetHTTPClient;
     _product: String;
     _updatefile: TAEUpdateFile;
@@ -51,7 +50,6 @@ Type
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
     Property UpdateableFileVersions[Const inFileName: String]: TArray<UInt64> Read GetUpdateableFileVersions;
   published
-    Property FilterForCurrentProduct: Boolean Read _filterforcurrentproduct Write _filterforcurrentproduct;
     Property UpdateFileEtag: String Read GetUpdateFileEtag Write SetUpdateFileEtag;
     Property UpdateFileURL: String Read _updatefileurl Write _updatefileurl;
   End;
@@ -137,13 +135,14 @@ Begin
 
   _availableupdates := TObjectDictionary <String, TList <UInt64>>.Create([doOwnsValues]);
   _etags := TDictionary<String, String>.Create;
-  _filterforcurrentproduct := True;
   _httpclient := TNetHTTPClient.Create(Self);
   _updatefile := TAEUpdateFile.Create;
 
   _product := FileProduct(ParamStr(0));
   If _product.IsEmpty Then
     Raise EAEUpdaterException.Create('Product name of running executable can not be determined!');
+
+  _updatefile.ProductBind := _product;
 End;
 
 Destructor TAEUpdater.Destroy;
