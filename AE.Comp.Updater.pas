@@ -31,6 +31,7 @@ Type
     Procedure SetETag(Const inURL, inETag: String);
     Procedure SetUpdateFileEtag(Const inUpdateFileEtag: String);
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
+    Function GetActualProduct: TAEUpdaterProduct;
     Function GetETag(Const inURL: String): String;
     Function GetETags: TArray<String>;
     Function GetFileVersionChangelog(Const inFileName: String; Const inVersion: UInt64): String;
@@ -44,6 +45,7 @@ Type
     Procedure CheckForUpdates;
     Procedure Update(Const inFileName: String; inVersion: UInt64 = 0);
     Function DownloadUpdateFile: Boolean;
+    Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
     Property ETag[Const inURL: String]: String Read GetETag Write SetETag;
     Property ETags: TArray<String> Read GetETags;
     Property FileVersionChangelog[Const inFileName: String; Const inVersion: UInt64]: String Read GetFileVersionChangelog;
@@ -220,6 +222,11 @@ Begin
   Finally
     FreeAndNil(ms);
   End;
+End;
+
+Function TAEUpdater.GetActualProduct: TAEUpdaterProduct;
+Begin
+ Result := _updatefile.Product[_product];
 End;
 
 Function TAEUpdater.GetETag(Const inURL: String): String;
