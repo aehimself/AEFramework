@@ -22,9 +22,11 @@ Type
 
   TAEUpdater = Class(TComponent)
   strict private
+    _availablemessages: TList<UInt64>;
     _availableupdates: TObjectDictionary<String, TList<UInt64>>;
     _etags: TDictionary<String, String>;
     _httpclient: TNetHTTPClient;
+    _lastmessagedate: UInt64;
     _product: String;
     _updatefile: TAEUpdateFile;
     _updatefileurl: String;
@@ -34,7 +36,7 @@ Type
     Function GetActualProduct: TAEUpdaterProduct;
     Function GetETag(Const inURL: String): String;
     Function GetETags: TArray<String>;
-    Function GetFileVersionChangelog(Const inFileName: String; Const inVersion: UInt64): String;
+    Function GetMessages: TArray<UInt64>;
     Function GetUpdateableFiles: TArray<String>;
     Function GetUpdateableFileVersions(Const inFileName: String): TArray<UInt64>;
     Function GetUpdateFileEtag: String;
@@ -48,7 +50,8 @@ Type
     Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
     Property ETag[Const inURL: String]: String Read GetETag Write SetETag;
     Property ETags: TArray<String> Read GetETags;
-    Property FileVersionChangelog[Const inFileName: String; Const inVersion: UInt64]: String Read GetFileVersionChangelog;
+    Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
+    Property Messages: TArray<UInt64> Read GetMessages;
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
     Property UpdateableFileVersions[Const inFileName: String]: TArray<UInt64> Read GetUpdateableFileVersions;
   published
@@ -83,12 +86,13 @@ End;
 Procedure TAEUpdater.CheckForUpdates;
 Var
   fname: String;
-  ver: UInt64;
+  a, b: UInt64;
   fver: TFileVersion;
   product: TAEUpdaterProduct;
   pfile: TAEUpdaterProductFile;
   pver: TAEUpdaterProductFileVersion;
 Begin
+  _availablemessages.Clear;
   _availableupdates.Clear;
 
   If Not DownloadUpdateFile Or Not _updatefile.ContainsProduct(_product) Then
@@ -105,22 +109,32 @@ Begin
     fver := FileVersion(fname);
     pfile := product.ProductFile[fname];
 
-    For ver In pfile.Versions Do
+    For a In pfile.Versions Do
     Begin
-      pver := pfile.Version[ver];
+      pver := pfile.Version[a];
 
       If pver.DeploymentDate = 0 Then
         Continue;
 
-      If (ver > fver.VersionNumber) Or
-        ((ver = fver.VersionNumber) And Not pver.FileHash.IsEmpty And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
+      If (a > fver.VersionNumber) Or
+        ((a = fver.VersionNumber) And Not pver.FileHash.IsEmpty And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
       Begin
         If Not _availableupdates.ContainsKey(fname) Then
           _availableupdates.Add(fname, TList<UInt64>.Create);
-        _availableupdates[fname].Add(ver);
+        _availableupdates[fname].Add(a);
       End;
     End;
   End;
+
+  b := 0;
+  For a In product.Messages Do
+  Begin
+    If a > _lastmessagedate Then
+      _availablemessages.Add(a);
+    If a > b Then
+      b := a;
+  End;
+  _lastmessagedate := b;
 End;
 
 Class Procedure TAEUpdater.Cleanup;
@@ -135,6 +149,7 @@ Constructor TAEUpdater.Create(AOwner: TComponent);
 Begin
   inherited;
 
+  _availablemessages := TList<UInt64>.Create;
   _availableupdates := TObjectDictionary <String, TList <UInt64>>.Create([doOwnsValues]);
   _etags := TDictionary<String, String>.Create;
   _httpclient := TNetHTTPClient.Create(Self);
@@ -149,6 +164,7 @@ End;
 
 Destructor TAEUpdater.Destroy;
 Begin
+  FreeAndNil(_availablemessages);
   FreeAndNil(_availableupdates);
   FreeAndNil(_etags);
   FreeAndNil(_updatefile);
@@ -239,9 +255,22 @@ Begin
  Result := _etags.Keys.ToArray;
 End;
 
-Function TAEUpdater.GetFileVersionChangelog(Const inFileName: String; Const inVersion: UInt64): String;
+Function TAEUpdater.GetMessages: TArray<UInt64>;
+Var
+  a, b: Integer;
+  tmp: UInt64;
 Begin
-  Result := _updatefile.Product[_product].ProductFile[inFileName].Version[inVersion].Changelog;
+  Result := _availablemessages.ToArray;
+
+  // Quickly sort the results in a descending order => latest message first
+  For a := Low(Result) To High(Result) - 1 Do
+    For b := a + 1 To High(Result) Do
+      If Result[a] < Result[b] Then
+      Begin
+        tmp := Result[a];
+        Result[a] := Result[b];
+        Result[b] := tmp;
+      End;
 End;
 
 Function TAEUpdater.GetUpdateableFiles: TArray<String>;

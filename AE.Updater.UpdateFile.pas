@@ -46,9 +46,13 @@ Type
 
   TAEUpdaterProduct = Class(TAEApplicationSetting)
   strict private
+    _messages: TDictionary<UInt64, String>;
     _productfiles: TObjectDictionary<String, TAEUpdaterProductFile>;
     _url: String;
+    Procedure SetMessage(Const inMessageDate: UInt64; Const inMessage: String);
     Procedure SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
+    Function GetMessage(Const inMessageDate: UInt64): String;
+    Function GetMessages: TArray<UInt64>;
     Function GetProductFile(Const inFileName: String): TAEUpdaterProductFile;
     Function GetProductFiles: TArray<String>;
   strict protected
@@ -60,6 +64,8 @@ Type
     Destructor Destroy; Override;
     Procedure RenameProductFile(Const inOldName, inNewName: String);
     Function ContainsFile(Const inFileName: String): Boolean;
+    Property Message[Const inMessageDate: UInt64]: String Read GetMessage Write SetMessage;
+    Property Messages: TArray<UInt64> Read GetMessages;
     Property ProductFile[Const inFileName: String]: TAEUpdaterProductFile Read GetProductFile Write SetProductFile;
     Property ProductFiles: TArray<String> Read GetProductFiles;
     Property URL: String Read _url Write _url;
@@ -104,6 +110,7 @@ Const
   TXT_PRODUCTS = 'products';
   TXT_URL = 'url';
   TXT_VERSIONS = 'versions';
+  TXT_MESSAGES = 'messages';
 
   //
   // TAEFileVersion
@@ -284,11 +291,13 @@ Constructor TAEUpdaterProduct.Create;
 Begin
   inherited;
 
+  _messages := TDictionary<UInt64, String>.Create;
   _productfiles := TObjectDictionary<String, TAEUpdaterProductFile>.Create([doOwnsValues]);
 End;
 
 Destructor TAEUpdaterProduct.Destroy;
 Begin
+  FreeAndNil(_messages);
   FreeAndNil(_productfiles);
 
   inherited;
@@ -298,8 +307,23 @@ Function TAEUpdaterProduct.GetAsJSON: TJSONObject;
 Var
   fname: String;
   jo, jofile: TJSONObject;
+  md: UInt64;
 Begin
   Result := inherited;
+
+  If _messages.Count > 0 Then
+  Begin
+    jo := TJSONObject.Create;
+    Try
+      For md In Self.Messages Do
+        jo.AddPair(md.ToString, _messages[md]);
+    Finally
+      If jo.Count = 0 Then
+        FreeAndNil(jo)
+      Else
+        Result.AddPair(TXT_MESSAGES, jo);
+    End;
+  End;
 
   If _productfiles.Count > 0 Then
   Begin
@@ -325,6 +349,29 @@ Begin
     Result.AddPair(TXT_URL, _url);
 End;
 
+Function TAEUpdaterProduct.GetMessage(Const inMessageDate: UInt64): String;
+Begin
+  _messages.TryGetValue(inMessageDate, Result);
+End;
+
+Function TAEUpdaterProduct.GetMessages: TArray<UInt64>;
+Var
+  a, b: Integer;
+  tmp: UInt64;
+Begin
+  Result := _messages.Keys.ToArray;
+
+  // Quickly sort the results in a descending order => latest message first
+  For a := Low(Result) To High(Result) - 1 Do
+    For b := a + 1 To High(Result) Do
+      If Result[a] < Result[b] Then
+      Begin
+        tmp := Result[a];
+        Result[a] := Result[b];
+        Result[b] := tmp;
+      End;
+End;
+
 Function TAEUpdaterProduct.GetProductFile(Const inFileName: String): TAEUpdaterProductFile;
 Begin
   If Not _productfiles.ContainsKey(inFileName) Then
@@ -342,6 +389,7 @@ Procedure TAEUpdaterProduct.InternalClear;
 Begin
   inherited;
 
+  _messages.Clear;
   _productfiles.Clear;
   _url := ''
 End;
@@ -357,11 +405,22 @@ Var
 Begin
   inherited;
 
+  If inJSON.GetValue(TXT_MESSAGES) <> nil Then
+    For jp In (inJSON.GetValue(TXT_MESSAGES) As TJSONObject) Do
+      _messages.AddOrSetValue(UInt64.Parse(jp.JsonString.Value), (jp.JsonValue As TJSONString).Value);
   If inJSON.GetValue(TXT_FILES) <> nil Then
     For jp In (inJSON.GetValue(TXT_FILES) As TJSONObject) Do
       _productfiles.Add(jp.JsonString.Value, TAEUpdaterProductFile.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFile);
   If inJSON.GetValue(TXT_URL) <> nil Then
     _url := (inJSON.GetValue(TXT_URL) As TJSONString).Value;
+End;
+
+Procedure TAEUpdaterProduct.SetMessage(Const inMessageDate: UInt64; Const inMessage: String);
+Begin
+  If Not inMessage.IsEmpty Then
+    _messages.AddOrSetValue(inMessageDate, inMessage)
+  Else
+    _messages.Remove(inMessageDate);
 End;
 
 Procedure TAEUpdaterProduct.SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
