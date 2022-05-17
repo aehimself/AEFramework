@@ -38,9 +38,7 @@ Type
     Procedure InternalClear; Override;
     Procedure SettingsMigrated;
   public
-    Class Function New(Const inFileLocation: TSettingsFileLocation;
-      Const inCompression: TSettingsFileCompresion = scAutoDetect)
-      : TAEApplicationSettings;
+    Class Function New(Const inFileLocation: TSettingsFileLocation; Const inCompression: TSettingsFileCompresion = scAutoDetect): TAEApplicationSettings;
     Constructor Create(Const inSettingsFileName: String); ReIntroduce; Virtual;
     Procedure BeforeDestruction; Override;
     Procedure Load;
@@ -62,6 +60,7 @@ Uses System.IOUtils, AE.Misc.ByteUtils, System.Classes;
 Procedure TAEApplicationSetting.AfterConstruction;
 Begin
   inherited;
+
   Self.InternalClear;
 End;
 
@@ -85,8 +84,7 @@ Begin
   // Dummy
 End;
 
-Class Function TAEApplicationSetting.NewFromJSON(Const inJSON: TJSONValue)
-  : TAEApplicationSetting;
+Class Function TAEApplicationSetting.NewFromJSON(Const inJSON: TJSONValue): TAEApplicationSetting;
 Begin
   Result := Self.Create;
   Try
@@ -119,6 +117,7 @@ End;
 Procedure TAEApplicationSettings.BeforeDestruction;
 Begin
   inherited;
+
   _destroying := True;
 End;
 
@@ -137,11 +136,8 @@ Begin
   _settingsfilename := inSettingsFileName;
   _destroying := False;
   _loading := False;
-{$IFDEF DEBUG}
-  _compressed := False;
-{$ELSE}
-  _compressed := True;
-{$ENDIF};
+  _compressed := {$IFDEF DEBUG}False{$ELSE}True{$ENDIF};
+
   inherited Create;
 End;
 
@@ -154,11 +150,14 @@ End;
 
 Procedure TAEApplicationSettings.Load;
 Var
-  JSON: TJSONObject;
+  json: TJSONObject;
   tb: TBytes;
 Begin
   If Not FileExists(_settingsfilename) Then
+  Begin
+    _loaded := True;
     Exit;
+  End;
 
   Try
     _loading := True;
@@ -166,14 +165,12 @@ Begin
 
     Self.BeforeLoad(tb);
 
-    JSON := TJSONObject(TJSONObject.ParseJSONValue(tb, 0,
-      [TJSONObject.TJSONParseOption.IsUTF8,
-      TJSONObject.TJSONParseOption.RaiseExc]));
+    json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
     Try
-      Self.AsJSON := JSON;
+      Self.AsJSON := json;
       _loaded := True;
     Finally
-      FreeAndNil(JSON);
+      FreeAndNil(json);
     End;
 
     If _loaded And _settingsmigrated Then
@@ -183,17 +180,13 @@ Begin
   End;
 End;
 
-Class Function TAEApplicationSettings.New(Const inFileLocation
-  : TSettingsFileLocation;
-  Const inCompression: TSettingsFileCompresion = scAutoDetect)
-  : TAEApplicationSettings;
+Class Function TAEApplicationSettings.New(Const inFileLocation: TSettingsFileLocation; Const inCompression: TSettingsFileCompresion = scAutoDetect): TAEApplicationSettings;
 Var
-  Compressed: Boolean;
+  compressed: Boolean;
   setfile, fileext: String;
 Begin
-  Compressed := (inCompression = scCompressed)
-  {$IFNDEF DEBUG} Or (inCompression = scAutoDetect){$ENDIF};
-  If Compressed Then
+  compressed := (inCompression = scCompressed) {$IFNDEF DEBUG} Or (inCompression = scAutoDetect){$ENDIF};
+  If compressed Then
     fileext := '.settings'
   Else
     fileext := '.json';
@@ -206,34 +199,34 @@ Begin
       setfile := IncludeTrailingPathDelimiter(TPath.GetHomePath) + setfile;
   End;
   Result := Self.Create(setfile);
-  Result.Compressed := Compressed;
+  Result.Compressed := compressed;
 End;
 
 Procedure TAEApplicationSettings.Save;
 Var
-  JSON: TJSONObject;
+  json: TJSONObject;
   tb: TBytes;
 Begin
-  JSON := Self.AsJSON;
-  If Assigned(JSON) Then
-    Try
-      If Not _compressed Then
-        tb := TEncoding.UTF8.GetBytes(JSON.Format)
-      Else
-      Begin
-        SetLength(tb, JSON.EstimatedByteSize);
-        SetLength(tb, JSON.ToBytes(tb, 0));
-      End;
-
-      Self.BeforeSave(tb);
-
-      Self.FileBytes := tb;
-
-      _loaded := True;
-      _settingsmigrated := False;
-    Finally
-      FreeAndNil(JSON);
+  json := Self.AsJSON;
+  If Assigned(json) Then
+  Try
+    If Not _compressed Then
+      tb := TEncoding.UTF8.GetBytes(json.Format)
+    Else
+    Begin
+      SetLength(tb, json.EstimatedByteSize);
+      SetLength(tb, json.ToBytes(tb, 0));
     End;
+
+    Self.BeforeSave(tb);
+
+    Self.FileBytes := tb;
+
+    _loaded := True;
+    _settingsmigrated := False;
+  Finally
+    FreeAndNil(json);
+  End;
 End;
 
 Procedure TAEApplicationSettings.SetFileBytes(Const inBytes: TBytes);
