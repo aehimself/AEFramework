@@ -5,7 +5,14 @@ Interface
 Uses AE.Application.Settings, System.JSON, System.Generics.Collections, System.Classes;
 
 Type
-  TAEUpdaterProductFileVersion = Class(TAEApplicationSetting)
+  TAEUpdaterUpdateFileObject = Class(TAEApplicationSetting)
+  strict private
+   _parent: TAEApplicationSetting;
+  public
+   Property Parent: TAEApplicationSetting Read _parent Write _parent;
+  End;
+
+  TAEUpdaterProductFileVersion = Class(TAEUpdaterUpdateFileObject)
   strict private
     _archivefilename: String;
     _changelog: String;
@@ -16,13 +23,14 @@ Type
     Procedure SetAsJSON(Const inJSON: TJSONObject); Override;
     Function GetAsJSON: TJSONObject; Override;
   public
+    Function RelativeArchiveFileName(Const inSeparator: Char): String;
     Property ArchiveFileName: String Read _archivefilename Write _archivefilename;
     Property Changelog: String Read _changelog Write _changelog;
     Property DeploymentDate: UInt64 Read _deploymentdate Write _deploymentdate;
     Property FileHash: String Read _filehash Write _filehash;
   End;
 
-  TAEUpdaterProductFile = Class(TAEApplicationSetting)
+  TAEUpdaterProductFile = Class(TAEUpdaterUpdateFileObject)
   strict private
     _localfilename: String;
     _versions: TObjectDictionary<UInt64, TAEUpdaterProductFileVersion>;
@@ -112,9 +120,9 @@ Const
   TXT_VERSIONS = 'versions';
   TXT_MESSAGES = 'messages';
 
-  //
-  // TAEFileVersion
-  //
+//
+// TAEFileVersion
+//
 
 Function TAEUpdaterProductFileVersion.GetAsJSON: TJSONObject;
 Begin
@@ -128,6 +136,11 @@ Begin
     Result.AddPair(TXT_DEPLOYMENTDATE, _deploymentdate);
   If Not _filehash.IsEmpty Then
     Result.AddPair(TXT_FILEHASH, _filehash);
+End;
+
+Function TAEUpdaterProductFileVersion.RelativeArchiveFileName(Const inSeparator: Char): String;
+Begin
+ Result := ((Self.Parent As TAEUpdaterProductFile).Parent As TAEUpdaterProduct).URL + inSeparator + _archivefilename;
 End;
 
 Procedure TAEUpdaterProductFileVersion.InternalClear;
@@ -260,6 +273,7 @@ End;
 Procedure TAEUpdaterProductFile.SetAsJSON(Const inJSON: TJSONObject);
 Var
   jp: TJSONPair;
+  ver: UInt64;
 Begin
   inherited;
 
@@ -267,7 +281,11 @@ Begin
     _localfilename := (inJSON.GetValue(TXT_FILENAME) As TJSONString).Value;
   If inJSON.GetValue(TXT_VERSIONS) <> nil Then
     For jp In (inJSON.GetValue(TXT_VERSIONS) As TJSONObject) Do
-      _versions.Add(UInt64.Parse(jp.JsonString.Value), TAEUpdaterProductFileVersion.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFileVersion);
+      Begin
+        ver := UInt64.Parse(jp.JsonString.Value);
+        _versions.Add(ver, TAEUpdaterProductFileVersion.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFileVersion);
+        _versions[ver].Parent := Self;
+      End;
 End;
 
 Procedure TAEUpdaterProductFile.SetVersion(Const inVersion: UInt64; Const inFileVersion: TAEUpdaterProductFileVersion);
@@ -410,7 +428,10 @@ Begin
       _messages.AddOrSetValue(UInt64.Parse(jp.JsonString.Value), (jp.JsonValue As TJSONString).Value);
   If inJSON.GetValue(TXT_FILES) <> nil Then
     For jp In (inJSON.GetValue(TXT_FILES) As TJSONObject) Do
-      _productfiles.Add(jp.JsonString.Value, TAEUpdaterProductFile.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFile);
+      Begin
+        _productfiles.Add(jp.JsonString.Value, TAEUpdaterProductFile.NewFromJSON(jp.JsonValue) As TAEUpdaterProductFile);
+        _productfiles[jp.JsonString.Value].Parent := Self;
+      End;
   If inJSON.GetValue(TXT_URL) <> nil Then
     _url := (inJSON.GetValue(TXT_URL) As TJSONString).Value;
 End;

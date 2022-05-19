@@ -335,8 +335,7 @@ Begin
     // - Current products base URL plus a forward slash
     // - Archive file name of the version
     fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) +
-               product.URL + '/' +
-               product.ProductFile[inFileName].Version[inVersion].ArchiveFileName;
+               product.ProductFile[inFileName].Version[inVersion].RelativeArchiveFileName('/');
 
     If Not DownloadFile(fileurl, ms) Then
       Exit;
