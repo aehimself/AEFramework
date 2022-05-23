@@ -44,6 +44,9 @@ End;
 
 Procedure ClearArray(Var outBytes: TBytes); InLine;
 Begin
+  If Length(outBytes) = 0 Then
+    Exit;
+
   FillChar(outBytes[0], Length(outBytes), #0);
   SetLength(outBytes, 0);
 End;

@@ -30,6 +30,7 @@ Type
     _product: String;
     _updatefile: TAEUpdateFile;
     _updatefileurl: String;
+    Procedure InternalCheckForUpdates;
     Procedure SetETag(Const inURL, inETag: String);
     Procedure SetUpdateFileEtag(Const inUpdateFileEtag: String);
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
@@ -44,7 +45,8 @@ Type
     Class Procedure Cleanup;
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
-    Procedure CheckForUpdates;
+    Procedure CheckForUpdates; Overload;
+    Procedure CheckForUpdates(Const inUpdateFile: TStream); Overload;
     Procedure Update(Const inFileName: String; inVersion: UInt64 = 0);
     Function DownloadUpdateFile: Boolean;
     Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
@@ -84,57 +86,23 @@ End;
 //
 
 Procedure TAEUpdater.CheckForUpdates;
-Var
-  fname: String;
-  a, b: UInt64;
-  fver: TFileVersion;
-  product: TAEUpdaterProduct;
-  pfile: TAEUpdaterProductFile;
-  pver: TAEUpdaterProductFileVersion;
 Begin
   _availablemessages.Clear;
   _availableupdates.Clear;
 
-  If Not DownloadUpdateFile Or Not _updatefile.ContainsProduct(_product) Then
-    Exit;
+  If Not DownloadUpdateFile Then Exit;
 
-  fname := ExtractFileName(ParamStr(0));
-  product := _updatefile.Product[_product];
+  InternalCheckForUpdates;
+End;
 
-  If Not product.ContainsFile(fname) Then
-    Raise EAEUpdaterException.Create(_product + ' does not contain a file named ' + fname);
+Procedure TAEUpdater.CheckForUpdates(Const inUpdateFile: TStream);
+Begin
+  _availablemessages.Clear;
+  _availableupdates.Clear;
 
-  For fname In product.ProductFiles Do
-  Begin
-    fver := FileVersion(fname);
-    pfile := product.ProductFile[fname];
+  _updatefile.LoadFromStream(inUpdateFile);
 
-    For a In pfile.Versions Do
-    Begin
-      pver := pfile.Version[a];
-
-      If pver.DeploymentDate = 0 Then
-        Continue;
-
-      If (a > fver.VersionNumber) Or
-        ((a = fver.VersionNumber) And Not pver.FileHash.IsEmpty And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
-      Begin
-        If Not _availableupdates.ContainsKey(fname) Then
-          _availableupdates.Add(fname, TList<UInt64>.Create);
-        _availableupdates[fname].Add(a);
-      End;
-    End;
-  End;
-
-  b := 0;
-  For a In product.Messages Do
-  Begin
-    If a > _lastmessagedate Then
-      _availablemessages.Add(a);
-    If a > b Then
-      b := a;
-  End;
-  _lastmessagedate := b;
+  InternalCheckForUpdates;
 End;
 
 Class Procedure TAEUpdater.Cleanup;
@@ -290,6 +258,62 @@ Begin
     Raise EAEUpdaterException.Create('Update file URL is not defined!');
 
   _etags.TryGetValue(_updatefileurl, Result);
+End;
+
+Procedure TAEUpdater.InternalCheckForUpdates;
+Var
+  fname: String;
+  a, b: UInt64;
+  fver: TFileVersion;
+  product: TAEUpdaterProduct;
+  pfile: TAEUpdaterProductFile;
+  pver: TAEUpdaterProductFileVersion;
+Begin
+  If Not _updatefile.ContainsProduct(_product) Then
+    Exit;
+
+  fname := ExtractFileName(ParamStr(0));
+  product := _updatefile.Product[_product];
+
+  If Not product.ContainsFile(fname) Then
+    Raise EAEUpdaterException.Create(_product + ' does not contain a file named ' + fname);
+
+  For fname In product.ProductFiles Do
+  Begin
+    fver := FileVersion(fname);
+    pfile := product.ProductFile[fname];
+
+    For a In pfile.Versions Do
+    Begin
+      pver := pfile.Version[a];
+
+      If pver.DeploymentDate = 0 Then
+        Continue;
+
+      // A file is considered updateable, if any of these conditions are true:
+      // - The file does not exist locally (a new file was deployed with an update)
+      // - The version number of the local file can be determined and the current version in the update file is greater than the local
+      // - The version number of the local file can not be determined or is equal to the current version in the update file, but the hashes mismatch
+      If Not TFile.Exists(fname) Or
+        ((a > fver.VersionNumber) And (fver.VersionNumber > 0)) Or
+        (Not pver.FileHash.IsEmpty And ((fver.VersionNumber = 0) Or (a = fver.VersionNumber)) And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
+      Begin
+        If Not _availableupdates.ContainsKey(fname) Then
+          _availableupdates.Add(fname, TList<UInt64>.Create);
+        _availableupdates[fname].Add(a);
+      End;
+    End;
+  End;
+
+  b := 0;
+  For a In product.Messages Do
+  Begin
+    If a > _lastmessagedate Then
+      _availablemessages.Add(a);
+    If a > b Then
+      b := a;
+  End;
+  _lastmessagedate := b;
 End;
 
 Procedure TAEUpdater.SetETag(Const inURL, inETag: String);
