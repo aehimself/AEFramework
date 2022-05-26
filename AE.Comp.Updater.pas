@@ -24,6 +24,7 @@ Type
   strict private
     _availablemessages: TList<UInt64>;
     _availableupdates: TObjectDictionary<String, TList<UInt64>>;
+    _channel: TAEUpdaterChannel;
     _etags: TDictionary<String, String>;
     _httpclient: TNetHTTPClient;
     _lastmessagedate: UInt64;
@@ -33,6 +34,7 @@ Type
     Procedure InternalCheckForUpdates;
     Procedure SetETag(Const inURL, inETag: String);
     Procedure SetUpdateFileEtag(Const inUpdateFileEtag: String);
+    Function UpdateableByChannel(Const inChannel: TAEUpdaterChannel): Boolean;
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
     Function GetActualProduct: TAEUpdaterProduct;
     Function GetETag(Const inURL: String): String;
@@ -50,6 +52,7 @@ Type
     Procedure Update(Const inFileName: String; inVersion: UInt64 = 0);
     Function DownloadUpdateFile: Boolean;
     Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
+    Property Channel: TAEUpdaterChannel Read _channel Write _channel;
     Property ETag[Const inURL: String]: String Read GetETag Write SetETag;
     Property ETags: TArray<String> Read GetETags;
     Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
@@ -119,6 +122,7 @@ Begin
 
   _availablemessages := TList<UInt64>.Create;
   _availableupdates := TObjectDictionary <String, TList <UInt64>>.Create([doOwnsValues]);
+  _channel := aucProduction;
   _etags := TDictionary<String, String>.Create;
   _httpclient := TNetHTTPClient.Create(Self);
   _updatefile := TAEUpdateFile.Create;
@@ -287,7 +291,7 @@ Begin
     Begin
       pver := pfile.Version[a];
 
-      If pver.DeploymentDate = 0 Then
+      If (pver.DeploymentDate = 0) Or Not UpdateableByChannel(pver.Channel) Then
         Continue;
 
       // A file is considered updateable, if any of these conditions are true:
@@ -308,7 +312,7 @@ Begin
   b := 0;
   For a In product.Messages Do
   Begin
-    If a > _lastmessagedate Then
+    If (a > _lastmessagedate) And UpdateableByChannel(product.Message[a].Channel) Then
       _availablemessages.Add(a);
     If a > b Then
       b := a;
@@ -384,6 +388,13 @@ Begin
   If TFile.Exists(inFileName) then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
   TFile.WriteAllBytes(inFileName, tb);
+End;
+
+Function TAEUpdater.UpdateableByChannel(Const inChannel: TAEUpdaterChannel): Boolean;
+Begin
+ // Developer channel should be able to see and update to production deployments if they are higher by version number
+
+ Result := (_channel = aucDevelopment) Or (_channel = inChannel);
 End;
 
 End.

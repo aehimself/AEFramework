@@ -5,10 +5,13 @@ Interface
 Uses AE.Application.Settings, System.JSON, System.Generics.Collections, System.Classes;
 
 Type
+  TAEUpdaterChannel = (aucProduction, aucDevelopment);
+
   TAEUpdaterProductFileVersion = Class(TAEApplicationSetting)
   strict private
     _archivefilename: String;
     _changelog: String;
+    _channel: TAEUpdaterChannel;
     _deploymentdate: UInt64;
     _filehash: String;
     _parent: TAEApplicationSetting;
@@ -21,6 +24,7 @@ Type
   public
     Function RelativeArchiveFileName(Const inSeparator: Char): String;
     Property ArchiveFileName: String Read _archivefilename Write _archivefilename;
+    Property Channel: TAEUpdaterChannel Read _channel Write _channel;
     Property Changelog: String Read _changelog Write _changelog;
     Property DeploymentDate: UInt64 Read _deploymentdate Write _deploymentdate;
     Property FileHash: String Read _filehash Write _filehash;
@@ -53,14 +57,27 @@ Type
     Property Version[Const inVersion: UInt64]: TAEUpdaterProductFileVersion Read GetVersion Write SetVersion;
   End;
 
+  TAEUpdaterProductMessage = Class(TAEApplicationSetting)
+  strict private
+    _channel: TAEUpdaterChannel;
+    _message: String;
+  strict protected
+    Procedure InternalClear; Override;
+    Procedure SetAsJSON(Const inJSON: TJSONObject); Override;
+    Function GetAsJSON: TJSONObject; Override;
+  public
+    Property Channel: TAEUpdaterChannel Read _channel Write _channel;
+    Property Message: String Read _message Write _message;
+  End;
+
   TAEUpdaterProduct = Class(TAEApplicationSetting)
   strict private
-    _messages: TDictionary<UInt64, String>;
+    _messages: TObjectDictionary<UInt64, TAEUpdaterProductMessage>;
     _productfiles: TObjectDictionary<String, TAEUpdaterProductFile>;
     _url: String;
-    Procedure SetMessage(Const inMessageDate: UInt64; Const inMessage: String);
+    Procedure SetMessage(Const inMessageDate: UInt64; Const inMessage: TAEUpdaterProductMessage);
     Procedure SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
-    Function GetMessage(Const inMessageDate: UInt64): String;
+    Function GetMessage(Const inMessageDate: UInt64): TAEUpdaterProductMessage;
     Function GetMessages: TArray<UInt64>;
     Function GetProductFile(Const inFileName: String): TAEUpdaterProductFile;
     Function GetProductFiles: TArray<String>;
@@ -73,7 +90,7 @@ Type
     Destructor Destroy; Override;
     Procedure RenameProductFile(Const inOldName, inNewName: String);
     Function ContainsFile(Const inFileName: String): Boolean;
-    Property Message[Const inMessageDate: UInt64]: String Read GetMessage Write SetMessage;
+    Property Message[Const inMessageDate: UInt64]: TAEUpdaterProductMessage Read GetMessage Write SetMessage;
     Property Messages: TArray<UInt64> Read GetMessages;
     Property ProductFile[Const inFileName: String]: TAEUpdaterProductFile Read GetProductFile Write SetProductFile;
     Property ProductFiles: TArray<String> Read GetProductFiles;
@@ -112,6 +129,7 @@ Uses System.SysUtils, AE.Misc.ByteUtils;
 Const
   TXT_ARCHIVEFILENAME = 'archivefilename';
   TXT_CHANGELOG = 'changelog';
+  TXT_CHANNEL = 'channel';
   TXT_DEPLOYMENTDATE = 'deploymentdate';
   TXT_FILEHASH = 'filehash';
   TXT_FILES = 'files';
@@ -119,10 +137,11 @@ Const
   TXT_PRODUCTS = 'products';
   TXT_URL = 'url';
   TXT_VERSIONS = 'versions';
+  TXT_MESSAGE = 'message';
   TXT_MESSAGES = 'messages';
 
 //
-// TAEFileVersion
+// TAEProductFileVersion
 //
 
 Function TAEUpdaterProductFileVersion.GetAsJSON: TJSONObject;
@@ -133,6 +152,8 @@ Begin
     Result.AddPair(TXT_ARCHIVEFILENAME, _archivefilename);
   If Not _changelog.IsEmpty Then
     Result.AddPair(TXT_CHANGELOG, _changelog);
+  If _channel <> aucProduction Then
+    Result.AddPair(TXT_CHANNEL, Integer(_channel));
   If _deploymentdate > 0 Then
     Result.AddPair(TXT_DEPLOYMENTDATE, _deploymentdate);
   If Not _filehash.IsEmpty Then
@@ -150,6 +171,7 @@ Begin
 
   _archivefilename := '';
   _changelog := '';
+  _channel := aucProduction;
   _deploymentdate := 0;
   _filehash := '';
 End;
@@ -162,6 +184,8 @@ Begin
     _archivefilename := (inJSON.GetValue(TXT_ARCHIVEFILENAME) As TJSONString).Value;
   If inJSON.GetValue(TXT_CHANGELOG) <> nil Then
     _changelog := (inJSON.GetValue(TXT_CHANGELOG) As TJSONString).Value;
+  If inJSON.GetValue(TXT_CHANNEL) <> nil Then
+    _channel := TAEUpdaterChannel((inJSON.GetValue(TXT_CHANNEL) As TJSONNumber).AsInt);
   If inJSON.GetValue(TXT_DEPLOYMENTDATE) <> nil Then
     _deploymentdate := (inJSON.GetValue(TXT_DEPLOYMENTDATE) As TJSONNumber).AsType<UInt64>;
   If inJSON.GetValue(TXT_FILEHASH) <> nil Then
@@ -174,7 +198,7 @@ Begin
 End;
 
 //
-// TAEProjectFile
+// TAEProductFile
 //
 
 Function TAEUpdaterProductFile.ContainsVersion(Const inVersion: UInt64): Boolean;
@@ -306,7 +330,35 @@ Begin
 End;
 
 //
-// TAEUpdaterProject
+// TAEUpdaterProductMessage
+//
+
+Function TAEUpdaterProductMessage.GetAsJSON: TJSONObject;
+Begin
+ Result := inherited;
+
+ If _channel <> aucProduction Then Result.AddPair(TXT_CHANNEL, Integer(_channel));
+ If Not _message.IsEmpty Then Result.AddPair(TXT_MESSAGE, _message);
+End;
+
+Procedure TAEUpdaterProductMessage.InternalClear;
+Begin
+ inherited;
+
+ _channel := aucProduction;
+ _message := '';
+End;
+
+Procedure TAEUpdaterProductMessage.SetAsJSON(Const inJSON: TJSONObject);
+Begin
+ inherited;
+
+ If inJSON.GetValue(TXT_CHANNEL) <> nil Then _channel := TAEUpdaterChannel((inJSON.GetValue(TXT_CHANNEL) As TJSONNumber).AsInt);
+ If inJSON.GetValue(TXT_MESSAGE) <> nil Then _message := (inJSON.GetValue(TXT_MESSAGE) As TJSONString).Value;
+End;
+
+//
+// TAEUpdaterProduct
 //
 
 Function TAEUpdaterProduct.ContainsFile(Const inFileName: String): Boolean;
@@ -318,7 +370,7 @@ Constructor TAEUpdaterProduct.Create;
 Begin
   inherited;
 
-  _messages := TDictionary<UInt64, String>.Create;
+  _messages := TObjectDictionary<UInt64, TAEUpdaterProductMessage>.Create([doOwnsValues]);
   _productfiles := TObjectDictionary<String, TAEUpdaterProductFile>.Create([doOwnsValues]);
 End;
 
@@ -343,7 +395,7 @@ Begin
     jo := TJSONObject.Create;
     Try
       For md In Self.Messages Do
-        jo.AddPair(md.ToString, _messages[md]);
+        jo.AddPair(md.ToString, _messages[md].AsJSON);
     Finally
       If jo.Count = 0 Then
         FreeAndNil(jo)
@@ -376,9 +428,10 @@ Begin
     Result.AddPair(TXT_URL, _url);
 End;
 
-Function TAEUpdaterProduct.GetMessage(Const inMessageDate: UInt64): String;
+Function TAEUpdaterProduct.GetMessage(Const inMessageDate: UInt64): TAEUpdaterProductMessage;
 Begin
-  _messages.TryGetValue(inMessageDate, Result);
+  If Not _messages.ContainsKey(inMessageDate) Then _messages.Add(inMessageDate, TAEUpdaterProductMessage.Create);
+  Result := _messages[inMessageDate];
 End;
 
 Function TAEUpdaterProduct.GetMessages: TArray<UInt64>;
@@ -437,7 +490,7 @@ Begin
 
   If inJSON.GetValue(TXT_MESSAGES) <> nil Then
     For jp In (inJSON.GetValue(TXT_MESSAGES) As TJSONObject) Do
-      _messages.AddOrSetValue(UInt64.Parse(jp.JsonString.Value), (jp.JsonValue As TJSONString).Value);
+      Self.Message[UInt64.Parse(jp.JsonString.Value)].AsJSON := TJSONObject(jp.JsonValue);
   If inJSON.GetValue(TXT_FILES) <> nil Then
     For jp In (inJSON.GetValue(TXT_FILES) As TJSONObject) Do
       Self.ProductFile[jp.JsonString.Value].AsJSON := TJSONObject(jp.JsonValue);
@@ -445,12 +498,10 @@ Begin
     _url := (inJSON.GetValue(TXT_URL) As TJSONString).Value;
 End;
 
-Procedure TAEUpdaterProduct.SetMessage(Const inMessageDate: UInt64; Const inMessage: String);
+Procedure TAEUpdaterProduct.SetMessage(Const inMessageDate: UInt64; Const inMessage: TAEUpdaterProductMessage);
 Begin
-  If Not inMessage.IsEmpty Then
-    _messages.AddOrSetValue(inMessageDate, inMessage)
-  Else
-    _messages.Remove(inMessageDate);
+  If Assigned(inMessage) Then _messages.AddOrSetValue(inMessageDate, inMessage)
+    Else _messages.Remove(inMessageDate);
 End;
 
 Procedure TAEUpdaterProduct.SetProductFile(Const inFileName: String; Const inProjectFile: TAEUpdaterProductFile);
@@ -587,7 +638,7 @@ begin
   If inJSON.GetValue(TXT_PRODUCTS) <> nil Then
     For jp In (inJSON.GetValue(TXT_PRODUCTS) As TJSONObject) Do
       If _productbind.IsEmpty Or (_productbind = jp.JsonString.Value) Then
-        _products.Add(jp.JsonString.Value, TAEUpdaterProduct.NewFromJSON(jp.JsonValue) As TAEUpdaterProduct);
+        Self.Product[jp.JsonString.Value].AsJSON := TJSONObject(jp.JsonValue);
 End;
 
 Procedure TAEUpdateFile.SetProduct(Const inProductName: String; Const inProduct: TAEUpdaterProduct);
