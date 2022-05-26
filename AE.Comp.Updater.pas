@@ -26,6 +26,7 @@ Type
     _availableupdates: TObjectDictionary<String, TList<UInt64>>;
     _channel: TAEUpdaterChannel;
     _etags: TDictionary<String, String>;
+    _filehashes: TDictionary<String, String>;
     _httpclient: TNetHTTPClient;
     _lastmessagedate: UInt64;
     _product: String;
@@ -33,12 +34,15 @@ Type
     _updatefileurl: String;
     Procedure InternalCheckForUpdates;
     Procedure SetETag(Const inURL, inETag: String);
+    Procedure SetFileHash(Const inFileName, inFileHash: String);
     Procedure SetUpdateFileEtag(Const inUpdateFileEtag: String);
-    Function UpdateableByChannel(Const inChannel: TAEUpdaterChannel): Boolean;
+    Function ChannelVisible(Const inChannel: TAEUpdaterChannel): Boolean;
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
     Function GetActualProduct: TAEUpdaterProduct;
     Function GetETag(Const inURL: String): String;
     Function GetETags: TArray<String>;
+    Function GetFileHash(Const inFileName: String): String;
+    Function GetFileHashes: TArray<String>;
     Function GetMessages: TArray<UInt64>;
     Function GetUpdateableFiles: TArray<String>;
     Function GetUpdateableFileVersions(Const inFileName: String): TArray<UInt64>;
@@ -55,6 +59,8 @@ Type
     Property Channel: TAEUpdaterChannel Read _channel Write _channel;
     Property ETag[Const inURL: String]: String Read GetETag Write SetETag;
     Property ETags: TArray<String> Read GetETags;
+    Property FileHash[Const inFileName: String]: String Read GetFileHash Write SetFileHash;
+    Property FileHashes: TArray<String> Read GetFileHashes;
     Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
     Property Messages: TArray<UInt64> Read GetMessages;
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
@@ -89,9 +95,26 @@ End;
 //
 
 Procedure TAEUpdater.CheckForUpdates;
+Var
+  fname: String;
+  fver: TFileVersion;
 Begin
   _availablemessages.Clear;
   _availableupdates.Clear;
+
+  // Verify files previously updated. If any of these files do not exist now OR the file hash is different,
+  // clear all ETags causing the updater to actually download the update file and perform all verifications.
+  For fname In _filehashes.Keys Do
+  Begin
+    fver := FileVersion(fname);
+    If Not TFile.Exists(fname) Or (CompareText(_filehashes[fname], fver.MD5Hash) <> 0) Then
+    Begin
+      _etags.Clear;
+      Break;
+    End;
+  End;
+
+  _filehashes.Clear;
 
   If Not DownloadUpdateFile Then Exit;
 
@@ -102,6 +125,7 @@ Procedure TAEUpdater.CheckForUpdates(Const inUpdateFile: TStream);
 Begin
   _availablemessages.Clear;
   _availableupdates.Clear;
+  _filehashes.Clear;
 
   _updatefile.LoadFromStream(inUpdateFile);
 
@@ -124,6 +148,7 @@ Begin
   _availableupdates := TObjectDictionary <String, TList <UInt64>>.Create([doOwnsValues]);
   _channel := aucProduction;
   _etags := TDictionary<String, String>.Create;
+  _filehashes := TDictionary<String, String>.Create;
   _httpclient := TNetHTTPClient.Create(Self);
   _updatefile := TAEUpdateFile.Create;
 
@@ -139,6 +164,7 @@ Begin
   FreeAndNil(_availablemessages);
   FreeAndNil(_availableupdates);
   FreeAndNil(_etags);
+  FreeANdNil(_filehashes);
   FreeAndNil(_updatefile);
 
   inherited;
@@ -149,7 +175,7 @@ Var
   headers: TArray<TNameValuePair>;
   hr: IHTTPResponse;
 Begin
- Result := False;
+  Result := False;
 
   If Not _etags.ContainsKey(inURL) Then
     SetLength(headers, 0)
@@ -214,17 +240,27 @@ End;
 
 Function TAEUpdater.GetActualProduct: TAEUpdaterProduct;
 Begin
- Result := _updatefile.Product[_product];
+  Result := _updatefile.Product[_product];
 End;
 
 Function TAEUpdater.GetETag(Const inURL: String): String;
 Begin
- _etags.TryGetValue(inURL, Result);
+  _etags.TryGetValue(inURL, Result);
 End;
 
 Function TAEUpdater.GetETags: TArray<String>;
 Begin
- Result := _etags.Keys.ToArray;
+  Result := _etags.Keys.ToArray;
+End;
+
+Function TAEUpdater.GetFileHash(Const inFileName: String): String;
+Begin
+  _filehashes.TryGetValue(inFileName, Result);
+End;
+
+Function TAEUpdater.GetFileHashes: TArray<String>;
+Begin
+  Result := _filehashes.Keys.ToArray;
 End;
 
 Function TAEUpdater.GetMessages: TArray<UInt64>;
@@ -291,7 +327,7 @@ Begin
     Begin
       pver := pfile.Version[a];
 
-      If (pver.DeploymentDate = 0) Or Not UpdateableByChannel(pver.Channel) Then
+      If (pver.DeploymentDate = 0) Or Not ChannelVisible(pver.Channel) Then
         Continue;
 
       // A file is considered updateable, if any of these conditions are true:
@@ -305,14 +341,21 @@ Begin
         If Not _availableupdates.ContainsKey(fname) Then
           _availableupdates.Add(fname, TList<UInt64>.Create);
         _availableupdates[fname].Add(a);
-      End;
+      End
+      Else
+      // If the file is not updateable but the version number (or hash) is equal to the existing one, add it to the known hashes list
+      If TFile.Exists(fname) And
+         Not pver.FileHash.IsEmpty And
+         ((fver.VersionNumber = 0) Or (a = fver.VersionNumber)) And
+         (CompareText(pver.FileHash, fver.MD5Hash) = 0) Then
+        _filehashes.Add(fname, fver.MD5Hash);
     End;
   End;
 
   b := 0;
   For a In product.Messages Do
   Begin
-    If (a > _lastmessagedate) And UpdateableByChannel(product.Message[a].Channel) Then
+    If (a > _lastmessagedate) And ChannelVisible(product.Message[a].Channel) Then
       _availablemessages.Add(a);
     If a > b Then
       b := a;
@@ -326,6 +369,14 @@ Begin
     _etags.AddOrSetValue(inURL, inETag)
   Else
     _etags.Remove(inURL);
+End;
+
+Procedure TAEUpdater.SetFileHash(Const inFileName, inFileHash: String);
+Begin
+  If Not inFileHash.IsEmpty Then
+    _filehashes.AddOrSetValue(inFileName, inFileHash)
+  Else
+    _filehashes.Remove(inFileName);
 End;
 
 Procedure TAEUpdater.SetUpdateFileEtag(const inUpdateFileEtag: String);
@@ -343,6 +394,7 @@ Var
   tb: TBytes;
   fileurl: String;
   product: TAEUpdaterProduct;
+  version: TAEUpdaterProductFileVersion;
 Begin
   ms := TMemoryStream.Create;
   Try
@@ -358,12 +410,13 @@ Begin
     If Not product.ProductFile[inFileName].ContainsVersion(inVersion) Then
       Raise EAEUpdaterException.Create('Version ' + FileVersionToString(inVersion) + ' does not exist for ' + inFileName + '!');
 
+    version := product.ProductFile[inFileName].Version[inVersion];
+
     // To get the file's complete download URL, we concatenate:
     // - The update file URL, cutting down the update file name
     // - Current products base URL plus a forward slash
     // - Archive file name of the version
-    fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) +
-               product.ProductFile[inFileName].Version[inVersion].RelativeArchiveFileName('/');
+    fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + version.RelativeArchiveFileName('/');
 
     If Not DownloadFile(fileurl, ms) Then
       Exit;
@@ -388,13 +441,14 @@ Begin
   If TFile.Exists(inFileName) then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
   TFile.WriteAllBytes(inFileName, tb);
+  _filehashes.AddOrSetValue(inFileName, version.FileHash);
 End;
 
-Function TAEUpdater.UpdateableByChannel(Const inChannel: TAEUpdaterChannel): Boolean;
+Function TAEUpdater.ChannelVisible(Const inChannel: TAEUpdaterChannel): Boolean;
 Begin
- // Developer channel should be able to see and update to production deployments if they are higher by version number
+  // Developer channel should be able to see and update to production deployments if they are higher by version number
 
- Result := (_channel = aucDevelopment) Or (_channel = inChannel);
+  Result := Integer(_channel) >= Integer(inChannel);
 End;
 
 End.
