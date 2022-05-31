@@ -106,6 +106,9 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
+        <DCCReference Include="vclwinx.dcp"/>
+        <DCCReference Include="dbrtl.dcp"/>
+        <DCCReference Include="vcldb.dcp"/>
         <DCCReference Include="AE.Comp.PageControl.pas"/>
         <DCCReference Include="AE.Comp.ThreadedTimer.pas"/>
         <DCCReference Include="AE.Misc.ByteUtils.pas"/>
@@ -124,6 +127,7 @@
         <DCCReference Include="AEFrameworkReg.pas"/>
         <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
         <DCCReference Include="AE.Comp.Updater.pas"/>
+        <DCCReference Include="AE.Comp.DBGrid.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

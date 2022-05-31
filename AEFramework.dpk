@@ -30,7 +30,10 @@
 
 requires
   rtl,
-  vcl;
+  vcl,
+  vclwinx,
+  dbrtl,
+  vcldb;
 
 contains
   AE.Comp.PageControl in 'AE.Comp.PageControl.pas',
@@ -50,6 +53,7 @@ contains
   StackTrace in '3rdParty\StackTrace.pas',
   AEFrameworkReg in 'AEFrameworkReg.pas',
   AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
-  AE.Comp.Updater in 'AE.Comp.Updater.pas';
+  AE.Comp.Updater in 'AE.Comp.Updater.pas',
+  AE.Comp.DBGrid in 'AE.Comp.DBGrid.pas';
 
 end.
