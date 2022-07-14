@@ -5,7 +5,7 @@ Interface
 Uses AE.Application.Settings, System.JSON, System.Generics.Collections, System.Classes;
 
 Type
-  TAEUpdaterChannel = (aucProduction, aucDevelopment);
+  TAEUpdaterChannel = (aucProduction, aucEarlyAccess, aucInternal);
 
   TAEUpdaterProductFileVersion = Class(TAEApplicationSetting)
   strict private
@@ -34,6 +34,7 @@ Type
   TAEUpdaterProductFile = Class(TAEApplicationSetting)
   strict private
     _localfilename: String;
+    _optional: Boolean;
     _parent: TAEApplicationSetting;
     _versions: TObjectDictionary<UInt64, TAEUpdaterProductFileVersion>;
     Procedure SetVersion(Const inVersion: UInt64; Const inFileVersion: TAEUpdaterProductFileVersion);
@@ -53,6 +54,7 @@ Type
     Function LatestVersion(Const inIncludeUndeployed: Boolean = False): UInt64;
     Property LocalFileName: String Read _localfilename Write _localfilename;
     Property Parent: TAEApplicationSetting Read _parent;
+    Property Optional: Boolean Read _optional Write _optional;
     Property Versions: TArray<UInt64> Read GetVersions;
     Property Version[Const inVersion: UInt64]: TAEUpdaterProductFileVersion Read GetVersion Write SetVersion;
   End;
@@ -139,6 +141,7 @@ Const
   TXT_VERSIONS = 'versions';
   TXT_MESSAGE = 'message';
   TXT_MESSAGES = 'messages';
+  TXT_OPTIONAL = 'optional';
 
 //
 // TAEProductFileVersion
@@ -230,6 +233,9 @@ Begin
   If Not _localfilename.IsEmpty Then
     Result.AddPair(TXT_FILENAME, _localfilename);
 
+  If _optional Then
+    Result.AddPair(TXT_OPTIONAL, _optional);
+
   If _versions.Count > 0 Then
   Begin
     jo := TJSONObject.Create;
@@ -295,6 +301,7 @@ Begin
   inherited;
 
   _localfilename := '';
+  _optional := False;
   _versions.Clear;
 End;
 
@@ -311,6 +318,8 @@ Begin
 
   If inJSON.GetValue(TXT_FILENAME) <> nil Then
     _localfilename := (inJSON.GetValue(TXT_FILENAME) As TJSONString).Value;
+  If inJSON.GetValue(TXT_OPTIONAL) <> nil Then
+    _optional := (inJSON.GetValue(TXT_OPTIONAL) As TJSONBool).AsBoolean;
   If inJSON.GetValue(TXT_VERSIONS) <> nil Then
     For jp In (inJSON.GetValue(TXT_VERSIONS) As TJSONObject) Do
       Self.Version[UInt64.Parse(jp.JsonString.Value)].AsJSON := TJSONObject(jp.JsonValue);

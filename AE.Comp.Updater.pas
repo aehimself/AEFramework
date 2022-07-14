@@ -20,6 +20,8 @@ Type
     Property StatusText: String Read _statustext;
   End;
 
+  TAEUpdaterEncryptDecryptEvent = Procedure(Var outBytes: TBytes) Of Object;
+
   TAEUpdater = Class(TComponent)
   strict private
     _availablemessages: TList<UInt64>;
@@ -29,6 +31,7 @@ Type
     _filehashes: TDictionary<String, String>;
     _httpclient: TNetHTTPClient;
     _lastmessagedate: UInt64;
+    _ondecryptupdatefile: TAEUpdaterEncryptDecryptEvent;
     _product: String;
     _updatefile: TAEUpdateFile;
     _updatefileurl: String;
@@ -68,6 +71,7 @@ Type
   published
     Property UpdateFileEtag: String Read GetUpdateFileEtag Write SetUpdateFileEtag;
     Property UpdateFileURL: String Read _updatefileurl Write _updatefileurl;
+    Property OnDecryptUpdateFile: TAEUpdaterEncryptDecryptEvent Read _ondecryptupdatefile Write _ondecryptupdatefile;
   End;
 
 Implementation
@@ -211,6 +215,7 @@ End;
 Function TAEUpdater.DownloadUpdateFile: Boolean;
 Var
   ms: TMemoryStream;
+  tb: TBytes;
 Begin
   Result := False;
 
@@ -224,6 +229,19 @@ Begin
         Exit;
 
       ms.Position := 0;
+
+      If Assigned(_ondecryptupdatefile) Then
+      Begin
+        SetLength(tb, ms.Size);
+        ms.Read(tb, Length(tb));
+
+        _ondecryptupdatefile(tb);
+
+        ms.Clear;
+        ms.Write(tb, Length(tb));
+
+        ms.Position := 0;
+      End;
 
       _updatefile.LoadFromStream(ms);
 
@@ -305,6 +323,7 @@ Var
   fname: String;
   a, b: UInt64;
   fver: TFileVersion;
+  fexists: Boolean;
   product: TAEUpdaterProduct;
   pfile: TAEUpdaterProductFile;
   pver: TAEUpdaterProductFileVersion;
@@ -320,8 +339,13 @@ Begin
 
   For fname In product.ProductFiles Do
   Begin
-    fver := FileVersion(fname);
     pfile := product.ProductFile[fname];
+    fexists := TFile.Exists(fname);
+
+    If Not fexists And pfile.Optional Then
+      Continue;
+
+    fver := FileVersion(fname);
 
     For a In pfile.Versions Do
     Begin
@@ -334,7 +358,7 @@ Begin
       // - The file does not exist locally (a new file was deployed with an update)
       // - The version number of the local file can be determined and the current version in the update file is greater than the local
       // - The version number of the local file can not be determined or is equal to the current version in the update file, but the hashes mismatch
-      If Not TFile.Exists(fname) Or
+      If Not fexists Or
         ((a > fver.VersionNumber) And (fver.VersionNumber > 0)) Or
         (Not pver.FileHash.IsEmpty And ((fver.VersionNumber = 0) Or (a = fver.VersionNumber)) And (CompareText(pver.FileHash, fver.MD5Hash) <> 0)) Then
       Begin
@@ -344,7 +368,7 @@ Begin
       End
       Else
       // If the file is not updateable but the version number (or hash) is equal to the existing one, add it to the known hashes list
-      If TFile.Exists(fname) And
+      If fexists And
          Not pver.FileHash.IsEmpty And
          ((fver.VersionNumber = 0) Or (a = fver.VersionNumber)) And
          (CompareText(pver.FileHash, fver.MD5Hash) = 0) Then
