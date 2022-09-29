@@ -351,6 +351,9 @@ Begin
     Begin
       pver := pfile.Version[a];
 
+      If (fver.VersionNumber = 0) And Not pver.FileHash.IsEmpty And (CompareText(pver.FileHash, fver.MD5Hash) = 0) Then
+        fver.VersionNumber := a;
+
       If (pver.DeploymentDate = 0) Or Not ChannelVisible(pver.Channel) Then
         Continue;
 
