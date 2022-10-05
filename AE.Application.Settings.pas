@@ -5,7 +5,7 @@ Interface
 Uses System.JSON, System.SysUtils;
 
 Type
-  TSettingsFileLocation = (slNextToExe, slAppData);
+  TSettingsFileLocation = (slNextToExe, slAppData, slDocuments);
 
   TSettingsFileCompresion = (scAutoDetect, scUncompressed, scCompressed);
 
@@ -193,10 +193,11 @@ Begin
   setfile := ExtractFileName(ChangeFileExt(ParamStr(0), fileext));
   Case inFileLocation Of
     slNextToExe:
-      setfile := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))
-        + setfile;
+      setfile := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + setfile;
     slAppData:
       setfile := IncludeTrailingPathDelimiter(TPath.GetHomePath) + setfile;
+    slDocuments:
+      setfile := IncludeTrailingPathDelimiter(TPath.GetDocumentsPath) + setfile;
   End;
   Result := Self.Create(setfile);
   Result.Compressed := compressed;
