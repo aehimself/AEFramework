@@ -38,6 +38,7 @@ Type
     Procedure InternalClear; Override;
     Procedure SettingsMigrated;
   public
+    Class Function SettingsFileDir(Const inFileLocation: TSettingsFileLocation): String;
     Class Function New(Const inFileLocation: TSettingsFileLocation; Const inCompression: TSettingsFileCompresion = scAutoDetect): TAEApplicationSettings;
     Constructor Create(Const inSettingsFileName: String); ReIntroduce; Virtual;
     Procedure BeforeDestruction; Override;
@@ -143,6 +144,12 @@ End;
 
 Function TAEApplicationSettings.GetFileBytes: TBytes;
 Begin
+  If Not TFile.Exists(_settingsfilename) Then
+  Begin
+    SetLength(Result, 0);
+    Exit;
+  End;
+
   Result := TFile.ReadAllBytes(_settingsfilename);
   If _compressed Then
     Result := Decompress(Result);
@@ -183,23 +190,15 @@ End;
 Class Function TAEApplicationSettings.New(Const inFileLocation: TSettingsFileLocation; Const inCompression: TSettingsFileCompresion = scAutoDetect): TAEApplicationSettings;
 Var
   compressed: Boolean;
-  setfile, fileext: String;
+  ext: String;
 Begin
   compressed := (inCompression = scCompressed) {$IFNDEF DEBUG} Or (inCompression = scAutoDetect){$ENDIF};
   If compressed Then
-    fileext := '.settings'
+    ext := '.settings'
   Else
-    fileext := '.json';
-  setfile := ExtractFileName(ChangeFileExt(ParamStr(0), fileext));
-  Case inFileLocation Of
-    slNextToExe:
-      setfile := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + setfile;
-    slAppData:
-      setfile := IncludeTrailingPathDelimiter(TPath.GetHomePath) + setfile;
-    slDocuments:
-      setfile := IncludeTrailingPathDelimiter(TPath.GetDocumentsPath) + setfile;
-  End;
-  Result := Self.Create(setfile);
+    ext := '.json';
+
+  Result := Self.Create(TAEApplicationSettings.SettingsFileDir(inFileLocation) + ChangeFileExt(ExtractFileName(ParamStr(0)), ext));
   Result.Compressed := compressed;
 End;
 
@@ -231,13 +230,37 @@ Begin
 End;
 
 Procedure TAEApplicationSettings.SetFileBytes(Const inBytes: TBytes);
+Var
+ dir: String;
 Begin
+  dir := ExtractfilePath(_settingsfilename);
+  If Not TDirectory.Exists(dir) Then
+    TDirectory.CreateDirectory(dir);
+
   If _compressed Then
     TFile.WriteAllBytes(_settingsfilename, Compress(inBytes))
   Else
     TFile.WriteAllBytes(_settingsfilename, inBytes);
   If Not _destroying And Not _loading Then
     Self.Load;
+End;
+
+Class Function TAEApplicationSettings.SettingsFileDir(Const inFileLocation: TSettingsFileLocation): String;
+Begin
+  Case inFileLocation Of
+    slNextToExe:
+      Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)));
+    Else
+    Begin
+      If inFileLocation = slAppData Then
+        Result := IncludeTrailingPathDelimiter(TPath.GetHomePath)
+      Else
+      If inFileLocation = slDocuments Then
+        Result := IncludeTrailingPathDelimiter(TPath.GetDocumentsPath);
+
+      Result := IncludeTrailingPathDelimiter(Result + ChangeFileExt(ExtractFileName(ParamStr(0)), ''));
+    End;
+  End;
 End;
 
 Procedure TAEApplicationSettings.SettingsMigrated;
