@@ -126,7 +126,7 @@ Type
 
 Implementation
 
-Uses System.SysUtils, AE.Misc.ByteUtils;
+Uses System.SysUtils;
 
 Const
   TXT_ARCHIVEFILENAME = 'archivefilename';
@@ -164,8 +164,14 @@ Begin
 End;
 
 Function TAEUpdaterProductFileVersion.RelativeArchiveFileName(Const inSeparator: Char): String;
+Var
+  s: String;
 Begin
- Result := ((Self.Parent As TAEUpdaterProductFile).Parent As TAEUpdaterProduct).URL + inSeparator + _archivefilename;
+  s := ((Self.Parent As TAEUpdaterProductFile).Parent As TAEUpdaterProduct).URL;
+  If Not s.IsEmpty Then
+    s := s + inSeparator;
+
+  Result := s + _archivefilename;
 End;
 
 Procedure TAEUpdaterProductFileVersion.InternalClear;
@@ -603,8 +609,6 @@ Begin
   SetLength(tb, inStream.Size - inStream.Position);
   inStream.Read(tb, Length(tb));
 
-  tb := Decompress(tb);
-
   json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
   Try
     Self.AsJSON := json;
@@ -632,8 +636,6 @@ Begin
   Finally
     FreeAndNil(json);
   End;
-
-  tb := Compress(tb);
 
   outStream.Write(tb, Length(tb));
 End;

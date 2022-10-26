@@ -20,7 +20,7 @@ Type
     Property StatusText: String Read _statustext;
   End;
 
-  TAEUpdaterEncryptDecryptEvent = Procedure(Var outBytes: TBytes) Of Object;
+  TAEUpdaterFileDownloadedEvent = Procedure(Sender: TObject; Const inURL: String; Const inStream: TStream) Of Object;
 
   TAEUpdater = Class(TComponent)
   strict private
@@ -31,7 +31,7 @@ Type
     _filehashes: TDictionary<String, String>;
     _httpclient: TNetHTTPClient;
     _lastmessagedate: UInt64;
-    _ondecryptupdatefile: TAEUpdaterEncryptDecryptEvent;
+    _onfiledownloaded: TAEUpdaterFileDownloadedEvent;
     _product: String;
     _updatefile: TAEUpdateFile;
     _updatefileurl: String;
@@ -71,12 +71,12 @@ Type
   published
     Property UpdateFileEtag: String Read GetUpdateFileEtag Write SetUpdateFileEtag;
     Property UpdateFileURL: String Read _updatefileurl Write _updatefileurl;
-    Property OnDecryptUpdateFile: TAEUpdaterEncryptDecryptEvent Read _ondecryptupdatefile Write _ondecryptupdatefile;
+    Property OnFileDownloaded: TAEUpdaterFileDownloadedEvent Read _onfiledownloaded Write _onfiledownloaded;
   End;
 
 Implementation
 
-Uses System.Net.URLClient, System.Net.HttpClient, AE.Misc.FileUtils, System.IOUtils, System.Zip;
+Uses System.Net.URLClient, System.Net.HttpClient, AE.Misc.FileUtils, System.IOUtils;
 
 Const
   OLDVERSIONEXT = '.aeupdater.tmp';
@@ -120,7 +120,8 @@ Begin
 
   _filehashes.Clear;
 
-  If Not DownloadUpdateFile Then Exit;
+  If Not DownloadUpdateFile Then
+    Exit;
 
   InternalCheckForUpdates;
 End;
@@ -203,11 +204,11 @@ Begin
 
   outStream.CopyFrom(hr.ContentStream);
 
+  If Assigned(_onfiledownloaded) Then
+    _onfiledownloaded(Self, inURL, outStream);
+
   If hr.ContainsHeader('ETag') Then
-    If Not hr.HeaderValue['ETag'].IsEmpty Then
-      _etags.AddOrSetValue(inURL, hr.HeaderValue['ETag'])
-    Else
-      _etags.Remove(inURL);
+    Self.ETag[inURL] :=  hr.HeaderValue['ETag'];
 
   Result := True;
 End;
@@ -215,7 +216,6 @@ End;
 Function TAEUpdater.DownloadUpdateFile: Boolean;
 Var
   ms: TMemoryStream;
-  tb: TBytes;
 Begin
   Result := False;
 
@@ -224,33 +224,14 @@ Begin
 
   ms := TMemoryStream.Create;
   Try
-    Try
-      If Not DownloadFile(_updatefileurl, ms) Then
-        Exit;
+    If Not DownloadFile(_updatefileurl, ms) Then
+      Exit;
 
-      ms.Position := 0;
+    ms.Position := 0;
 
-      If Assigned(_ondecryptupdatefile) Then
-      Begin
-        SetLength(tb, ms.Size);
-        ms.Read(tb, Length(tb));
+    _updatefile.LoadFromStream(ms);
 
-        _ondecryptupdatefile(tb);
-
-        ms.Clear;
-        ms.Write(tb, Length(tb));
-
-        ms.Position := 0;
-      End;
-
-      _updatefile.LoadFromStream(ms);
-
-      Result := True;
-    Except
-      On E: EAEUpdaterURLException Do
-        If E.StatusCode <> 304 Then // StatusCode 304 = unchanged; no content was supplied because of ETag
-          Raise;
-    End;
+    Result := True;
   Finally
     FreeAndNil(ms);
   End;
@@ -417,8 +398,6 @@ End;
 Procedure TAEUpdater.Update(Const inFileName: String; inVersion: UInt64 = 0);
 Var
   ms: TMemoryStream;
-  zip: TZIPFile;
-  tb: TBytes;
   fileurl: String;
   product: TAEUpdaterProduct;
   version: TAEUpdaterProductFileVersion;
@@ -450,25 +429,24 @@ Begin
 
     ms.Position := 0;
 
-    zip := TZIPFile.Create;
+    If TFile.Exists(inFileName) then
+      TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
+
     Try
-      zip.Open(ms, zmRead);
-      Try
-        zip.Read(0, tb);
-      Finally
-        zip.Close;
+      ms.SaveToFile(inFileName);
+    Except
+      On E:Exception Do
+      Begin
+        // If the extracting failed, make sure to rename the file back to its original name
+        // so it still can be accessed the next time the application starts
+        TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
+
+        Raise;
       End;
-    Finally
-      FreeAndNil(zip);
     End;
   Finally
     ms.Free;
   End;
-
-  If TFile.Exists(inFileName) then
-    TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
-  TFile.WriteAllBytes(inFileName, tb);
-  _filehashes.AddOrSetValue(inFileName, version.FileHash);
 End;
 
 Function TAEUpdater.ChannelVisible(Const inChannel: TAEUpdaterChannel): Boolean;
