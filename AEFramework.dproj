@@ -128,6 +128,10 @@
         <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
         <DCCReference Include="AE.Comp.Updater.pas"/>
         <DCCReference Include="AE.Comp.DBGrid.pas"/>
+        <DCCReference Include="AE.Comp.Updater.FileProvider.pas"/>
+        <DCCReference Include="AE.Comp.Updater.FileProvider.HTTP.pas"/>
+        <DCCReference Include="AE.Comp.Updater.FileProvider.Flat.pas"/>
+        <DCCReference Include="AE.Comp.Updater.FileProvider.Custom.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -172,6 +176,12 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\22.0\Bpl\AEFramework.bpl" Configuration="Debug" Class="ProjectOutput"/>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\22.0\Bpl\AEFramework.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>AEFramework.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="OSX32">
                         <Operation>1</Operation>

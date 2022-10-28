@@ -2,108 +2,67 @@
 
 Interface
 
-Uses System.Classes, AE.Updater.UpdateFile, System.Net.HttpClientComponent, System.SysUtils, System.Generics.Collections;
+Uses System.Classes, AE.Updater.UpdateFile, System.SysUtils, System.Generics.Collections, AE.Comp.Updater.FileProvider;
 
 Type
-  EAEUpdaterException = Class(Exception)
-  End;
-
-  EAEUpdaterURLException = Class(EAEUpdaterException)
-  strict private
-    _url: String;
-    _statuscode: Integer;
-    _statustext: String;
-  public
-    Constructor Create(Const inMessage: String; Const inURL: String = ''; Const inStatusCode: Integer = -1; Const inStatusText: String = '');
-    Property URL: String Read _url;
-    Property StatusCode: Integer Read _statuscode;
-    Property StatusText: String Read _statustext;
-  End;
-
-  TAEUpdaterFileDownloadedEvent = Procedure(Sender: TObject; Const inURL: String; Const inStream, outStream: TStream) Of Object;
+  EAEUpdaterException = Class(Exception);
 
   TAEUpdater = Class(TComponent)
   strict private
     _availablemessages: TList<UInt64>;
     _availableupdates: TObjectDictionary<String, TList<UInt64>>;
     _channel: TAEUpdaterChannel;
-    _etags: TDictionary<String, String>;
     _filehashes: TDictionary<String, String>;
-    _httpclient: TNetHTTPClient;
+    _fileprovider: TAEUpdaterFileProvider;
     _lastmessagedate: UInt64;
-    _onfiledownloaded: TAEUpdaterFileDownloadedEvent;
     _product: String;
     _updatefile: TAEUpdateFile;
-    _updatefileurl: String;
+    Procedure CheckFileProvider;
     Procedure InternalCheckForUpdates;
-    Procedure SetETag(Const inURL, inETag: String);
     Procedure SetFileHash(Const inFileName, inFileHash: String);
-    Procedure SetUpdateFileEtag(Const inUpdateFileEtag: String);
+    Procedure SetProduct(Const inProduct: String);
     Function ChannelVisible(Const inChannel: TAEUpdaterChannel): Boolean;
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
     Function GetActualProduct: TAEUpdaterProduct;
-    Function GetETag(Const inURL: String): String;
-    Function GetETags: TArray<String>;
     Function GetFileHash(Const inFileName: String): String;
     Function GetFileHashes: TArray<String>;
     Function GetMessages: TArray<UInt64>;
     Function GetUpdateableFiles: TArray<String>;
     Function GetUpdateableFileVersions(Const inFileName: String): TArray<UInt64>;
-    Function GetUpdateFileEtag: String;
   public
     Class Procedure Cleanup;
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
-    Procedure CheckForUpdates; Overload;
-    Procedure CheckForUpdates(Const inUpdateFile: TStream); Overload;
+    Procedure CheckForUpdates;
     Procedure Update(Const inFileName: String; inVersion: UInt64 = 0);
-    Function DownloadUpdateFile: Boolean;
     Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
     Property Channel: TAEUpdaterChannel Read _channel Write _channel;
-    Property ETag[Const inURL: String]: String Read GetETag Write SetETag;
-    Property ETags: TArray<String> Read GetETags;
     Property FileHash[Const inFileName: String]: String Read GetFileHash Write SetFileHash;
     Property FileHashes: TArray<String> Read GetFileHashes;
-    Property HTTPClient: TNetHTTPClient Read _httpclient;
     Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
+    Function LoadUpdateFile: Boolean;
     Property Messages: TArray<UInt64> Read GetMessages;
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
     Property UpdateableFileVersions[Const inFileName: String]: TArray<UInt64> Read GetUpdateableFileVersions;
   published
-    Property UpdateFileEtag: String Read GetUpdateFileEtag Write SetUpdateFileEtag;
-    Property UpdateFileURL: String Read _updatefileurl Write _updatefileurl;
-    Property OnFileDownloaded: TAEUpdaterFileDownloadedEvent Read _onfiledownloaded Write _onfiledownloaded;
+    Property FileProvider: TAEUpdaterFileProvider Read _fileprovider Write _fileprovider;
+    Property Product: String Read _product Write SetProduct;
   End;
 
 Implementation
 
-Uses System.Net.URLClient, System.Net.HttpClient, AE.Misc.FileUtils, System.IOUtils;
+Uses AE.Misc.FileUtils, System.IOUtils;
 
 Const
   OLDVERSIONEXT = '.aeupdater.tmp';
-
-//
-// EAEUpdaterException
-//
-
-Constructor EAEUpdaterURLException.Create(Const inMessage: String; Const inURL: String = ''; Const inStatusCode: Integer = -1; Const inStatusText: String = '');
-Begin
-  inherited Create(inMessage);
-
-  _url := inURL;
-  _statustext := inStatusText;
-  _statuscode := inStatusCode;
-End;
-
-//
-// TAEUpdater
-//
 
 Procedure TAEUpdater.CheckForUpdates;
 Var
   fname: String;
   fver: TFileVersion;
 Begin
+  CheckFileProvider;
+
   _availablemessages.Clear;
   _availableupdates.Clear;
 
@@ -114,28 +73,23 @@ Begin
     fver := FileVersion(fname);
     If Not TFile.Exists(fname) Or (CompareText(_filehashes[fname], fver.MD5Hash) <> 0) Then
     Begin
-      _etags.Clear;
+      _fileprovider.ResetCache;
       Break;
     End;
   End;
 
   _filehashes.Clear;
 
-  If Not DownloadUpdateFile Then
+  If Not LoadUpdateFile Then
     Exit;
 
   InternalCheckForUpdates;
 End;
 
-Procedure TAEUpdater.CheckForUpdates(Const inUpdateFile: TStream);
+Procedure TAEUpdater.CheckFileProvider;
 Begin
-  _availablemessages.Clear;
-  _availableupdates.Clear;
-  _filehashes.Clear;
-
-  _updatefile.LoadFromStream(inUpdateFile);
-
-  InternalCheckForUpdates;
+  If Not Assigned(_fileprovider) Then
+    Raise EAEUpdaterException.Create('File provider is not assigned!');
 End;
 
 Class Procedure TAEUpdater.Cleanup;
@@ -153,23 +107,16 @@ Begin
   _availablemessages := TList<UInt64>.Create;
   _availableupdates := TObjectDictionary <String, TList <UInt64>>.Create([doOwnsValues]);
   _channel := aucProduction;
-  _etags := TDictionary<String, String>.Create;
   _filehashes := TDictionary<String, String>.Create;
-  _httpclient := TNetHTTPClient.Create(Self);
+  _fileprovider := nil;
   _updatefile := TAEUpdateFile.Create;
-
-  _product := FileProduct(ParamStr(0));
-  If _product.IsEmpty Then
-    Raise EAEUpdaterException.Create('Product name of running executable can not be determined!');
-
-  _updatefile.ProductBind := _product;
+  _product := '';
 End;
 
 Destructor TAEUpdater.Destroy;
 Begin
   FreeAndNil(_availablemessages);
   FreeAndNil(_availableupdates);
-  FreeAndNil(_etags);
   FreeANdNil(_filehashes);
   FreeAndNil(_updatefile);
 
@@ -178,54 +125,30 @@ End;
 
 Function TAEUpdater.DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
 Var
-  headers: TArray<TNameValuePair>;
-  hr: IHTTPResponse;
+  prevsize: Int64;
 Begin
-  Result := False;
+  CheckFileProvider;
 
-  If Not _etags.ContainsKey(inURL) Then
-    SetLength(headers, 0)
-  Else
-  Begin
-    SetLength(headers, 1);
-    headers[0].Name := 'If-None-Match';
-    headers[0].Value := _etags[inURL];
-  End;
+  prevsize := outStream.Size;
 
-  hr := _httpclient.Get(inURL, nil, headers);
+  _fileprovider.ProvideFile(inURL, outStream);
 
-  If Not Assigned(hr) Then
-    Raise EAEUpdaterException.Create(inURL + ' could not be downloaded!');
-
-  If hr.StatusCode = 304 Then // 304 was provided because of ETag = no updates are available
-    Exit
-  Else
-  If hr.StatusCode <> 200 Then
-    Raise EAEUpdaterURLException.Create('Requested file could not be downloaded!', inURL, hr.StatusCode, hr.StatusText);
-
-  If Assigned(_onfiledownloaded) Then
-    _onfiledownloaded(Self, inURL, hr.ContentStream, outStream)
-  Else
-    outStream.CopyFrom(hr.ContentStream);
-
-  If hr.ContainsHeader('ETag') Then
-    Self.ETag[inURL] :=  hr.HeaderValue['ETag'];
-
-  Result := True;
+  Result := outStream.Size > prevsize;
 End;
 
-Function TAEUpdater.DownloadUpdateFile: Boolean;
+Function TAEUpdater.LoadUpdateFile: Boolean;
 Var
   ms: TMemoryStream;
 Begin
-  Result := False;
+  CheckFileProvider;
 
-  If _updatefileurl.IsEmpty Then
-    Raise EAEUpdaterException.Create('Update file URL is not defined!');
+  Result := False;
 
   ms := TMemoryStream.Create;
   Try
-    If Not DownloadFile(_updatefileurl, ms) Then
+    _fileprovider.ProvideUpdateFile(ms);
+
+    If ms.Size = 0 Then
       Exit;
 
     ms.Position := 0;
@@ -241,16 +164,6 @@ End;
 Function TAEUpdater.GetActualProduct: TAEUpdaterProduct;
 Begin
   Result := _updatefile.Product[_product];
-End;
-
-Function TAEUpdater.GetETag(Const inURL: String): String;
-Begin
-  _etags.TryGetValue(inURL, Result);
-End;
-
-Function TAEUpdater.GetETags: TArray<String>;
-Begin
-  Result := _etags.Keys.ToArray;
 End;
 
 Function TAEUpdater.GetFileHash(Const inFileName: String): String;
@@ -292,14 +205,6 @@ Begin
   Result := _availableupdates[inFileName].ToArray;
 End;
 
-Function TAEUpdater.GetUpdateFileEtag: String;
-Begin
-  If Not (csDesigning In Self.ComponentState) And Not (csLoading In Self.ComponentState) And _updatefileurl.IsEmpty Then
-    Raise EAEUpdaterException.Create('Update file URL is not defined!');
-
-  _etags.TryGetValue(_updatefileurl, Result);
-End;
-
 Procedure TAEUpdater.InternalCheckForUpdates;
 Var
   fname: String;
@@ -310,11 +215,14 @@ Var
   pfile: TAEUpdaterProductFile;
   pver: TAEUpdaterProductFileVersion;
 Begin
-  If Not _updatefile.ContainsProduct(_product) Then
-    Exit;
-
   fname := ExtractFileName(ParamStr(0));
   product := _updatefile.Product[_product];
+
+  If Not product.ContainsFile(fname) Then
+    Raise EAEUpdaterException.Create('Product name is not provided!');
+
+  If Not _updatefile.ContainsProduct(_product) Then
+    Exit;
 
   If Not product.ContainsFile(fname) Then
     Raise EAEUpdaterException.Create(_product + ' does not contain a file named ' + fname);
@@ -372,14 +280,6 @@ Begin
   _lastmessagedate := b;
 End;
 
-Procedure TAEUpdater.SetETag(Const inURL, inETag: String);
-Begin
-  If Not inETag.IsEmpty Then
-    _etags.AddOrSetValue(inURL, inETag)
-  Else
-    _etags.Remove(inURL);
-End;
-
 Procedure TAEUpdater.SetFileHash(Const inFileName, inFileHash: String);
 Begin
   If Not inFileHash.IsEmpty Then
@@ -388,12 +288,10 @@ Begin
     _filehashes.Remove(inFileName);
 End;
 
-Procedure TAEUpdater.SetUpdateFileEtag(const inUpdateFileEtag: String);
+Procedure TAEUpdater.SetProduct(Const inProduct: String);
 Begin
-  If Not (csDesigning In Self.ComponentState) And Not (csLoading In Self.ComponentState) And _updatefileurl.IsEmpty Then
-    Raise EAEUpdaterException.Create('Update file URL is not defined!');
-
-  _etags.AddOrSetValue(_updatefileurl, inUpdateFileEtag);
+  _product := inProduct;
+  _updatefile.ProductBind := inProduct;
 End;
 
 Procedure TAEUpdater.Update(Const inFileName: String; inVersion: UInt64 = 0);
@@ -403,6 +301,8 @@ Var
   product: TAEUpdaterProduct;
   version: TAEUpdaterProductFileVersion;
 Begin
+  CheckFileProvider;
+
   product := _updatefile.Product[_product];
 
   If Not product.ContainsFile(inFileName) Then
@@ -421,7 +321,7 @@ Begin
   // - The update file URL, cutting down the update file name
   // - Current products base URL plus a forward slash
   // - Archive file name of the version
-  fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + version.RelativeArchiveFileName('/');
+  fileurl := _fileprovider.UpdateRoot + version.RelativeArchiveFileName('/');
 
   If TFile.Exists(inFileName) then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);

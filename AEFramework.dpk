@@ -54,6 +54,10 @@ contains
   AEFrameworkReg in 'AEFrameworkReg.pas',
   AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
   AE.Comp.Updater in 'AE.Comp.Updater.pas',
-  AE.Comp.DBGrid in 'AE.Comp.DBGrid.pas';
+  AE.Comp.DBGrid in 'AE.Comp.DBGrid.pas',
+  AE.Comp.Updater.FileProvider in 'AE.Comp.Updater.FileProvider.pas',
+  AE.Comp.Updater.FileProvider.HTTP in 'AE.Comp.Updater.FileProvider.HTTP.pas',
+  AE.Comp.Updater.FileProvider.Flat in 'AE.Comp.Updater.FileProvider.Flat.pas',
+  AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas';
 
 end.

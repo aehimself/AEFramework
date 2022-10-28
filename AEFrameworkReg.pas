@@ -7,16 +7,12 @@ Procedure Register;
 Implementation
 
 Uses System.Classes, AE.Comp.HeaderMenuItem, AE.Comp.PageControl, AE.Comp.ComboBox, AE.Comp.ThreadedTimer, AE.Comp.Updater,
-     AE.Comp.DBGrid;
+     AE.Comp.DBGrid, AE.Comp.Updater.FileProvider.HTTP, AE.Comp.Updater.FileProvider.Flat, AE.Comp.Updater.FileProvider.Custom;
 
 Procedure Register;
 Begin
-  RegisterComponents('AE Components', [TAEHeaderMenuItem]);
-  RegisterComponents('AE Components', [TAEPageControl]);
-  RegisterComponents('AE Components', [TAEComboBox]);
-  RegisterComponents('AE Components', [TAEThreadedTimer]);
-  RegisterComponents('AE Components', [TAEUpdater]);
-  RegisterComponents('AE Components', [TAEDBGrid]);
+  RegisterComponents('AE Components', [TAEHeaderMenuItem, TAEPageControl, TAEComboBox, TAEThreadedTimer, TAEDBGrid]);
+  RegisterComponents('AE Updater components', [TAEUpdater, TAEUpdaterHTTPFileProvider, TAEUpdaterCustomFileProvider, TAEUpdaterCustomFileProvider]);
 
   // RegisterComponentEditor(TMyComponent, TMyEditor);
 End;
