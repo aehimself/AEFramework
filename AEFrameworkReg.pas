@@ -12,7 +12,7 @@ Uses System.Classes, AE.Comp.HeaderMenuItem, AE.Comp.PageControl, AE.Comp.ComboB
 Procedure Register;
 Begin
   RegisterComponents('AE Components', [TAEHeaderMenuItem, TAEPageControl, TAEComboBox, TAEThreadedTimer, TAEDBGrid]);
-  RegisterComponents('AE Updater components', [TAEUpdater, TAEUpdaterHTTPFileProvider, TAEUpdaterCustomFileProvider, TAEUpdaterCustomFileProvider]);
+  RegisterComponents('AE Updater components', [TAEUpdater, TAEUpdaterHTTPFileProvider, TAEUpdaterFlatFileProvider, TAEUpdaterCustomFileProvider]);
 
   // RegisterComponentEditor(TMyComponent, TMyEditor);
 End;
