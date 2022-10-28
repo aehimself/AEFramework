@@ -20,7 +20,7 @@ Type
     Property StatusText: String Read _statustext;
   End;
 
-  TAEUpdaterFileDownloadedEvent = Procedure(Sender: TObject; Const inURL: String; Const inStream: TStream) Of Object;
+  TAEUpdaterFileDownloadedEvent = Procedure(Sender: TObject; Const inURL: String; Const inStream, outStream: TStream) Of Object;
 
   TAEUpdater = Class(TComponent)
   strict private
@@ -64,6 +64,7 @@ Type
     Property ETags: TArray<String> Read GetETags;
     Property FileHash[Const inFileName: String]: String Read GetFileHash Write SetFileHash;
     Property FileHashes: TArray<String> Read GetFileHashes;
+    Property HTTPClient: TNetHTTPClient Read _httpclient;
     Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
     Property Messages: TArray<UInt64> Read GetMessages;
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
@@ -141,7 +142,7 @@ Class Procedure TAEUpdater.Cleanup;
 Var
   fname: String;
 Begin
-  For fname In TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), '*' + OLDVERSIONEXT) Do
+  For fname In TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), '*' + OLDVERSIONEXT, TSearchOption.soAllDirectories) Do
     TFile.Delete(fname);
 End;
 
@@ -202,10 +203,10 @@ Begin
   If hr.StatusCode <> 200 Then
     Raise EAEUpdaterURLException.Create('Requested file could not be downloaded!', inURL, hr.StatusCode, hr.StatusText);
 
-  outStream.CopyFrom(hr.ContentStream);
-
   If Assigned(_onfiledownloaded) Then
-    _onfiledownloaded(Self, inURL, outStream);
+    _onfiledownloaded(Self, inURL, hr.ContentStream, outStream)
+  Else
+    outStream.CopyFrom(hr.ContentStream);
 
   If hr.ContainsHeader('ETag') Then
     Self.ETag[inURL] :=  hr.HeaderValue['ETag'];
@@ -397,55 +398,50 @@ End;
 
 Procedure TAEUpdater.Update(Const inFileName: String; inVersion: UInt64 = 0);
 Var
-  ms: TMemoryStream;
+  fs: TFileStream;
   fileurl: String;
   product: TAEUpdaterProduct;
   version: TAEUpdaterProductFileVersion;
 Begin
-  ms := TMemoryStream.Create;
+  product := _updatefile.Product[_product];
+
+  If Not product.ContainsFile(inFileName) Then
+    Raise EAEUpdaterException.Create(inFileName + ' does not exist in the current product!');
+
+  // If no version number was provided, use the available latest. Else, perform verification
+  If inVersion = 0 Then
+    inVersion := product.ProductFile[inFileName].LatestVersion
+  Else
+  If Not product.ProductFile[inFileName].ContainsVersion(inVersion) Then
+    Raise EAEUpdaterException.Create('Version ' + FileVersionToString(inVersion) + ' does not exist for ' + inFileName + '!');
+
+  version := product.ProductFile[inFileName].Version[inVersion];
+
+  // To get the file's complete download URL, we concatenate:
+  // - The update file URL, cutting down the update file name
+  // - Current products base URL plus a forward slash
+  // - Archive file name of the version
+  fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + version.RelativeArchiveFileName('/');
+
+  If TFile.Exists(inFileName) then
+    TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
   Try
-    product := _updatefile.Product[_product];
-
-    If Not product.ContainsFile(inFileName) Then
-      Raise EAEUpdaterException.Create(inFileName + ' does not exist in the current product!');
-
-    // If no version number was provided, use the available latest. Else, perform verification
-    If inVersion = 0 Then
-      inVersion := product.ProductFile[inFileName].LatestVersion
-    Else
-    If Not product.ProductFile[inFileName].ContainsVersion(inVersion) Then
-      Raise EAEUpdaterException.Create('Version ' + FileVersionToString(inVersion) + ' does not exist for ' + inFileName + '!');
-
-    version := product.ProductFile[inFileName].Version[inVersion];
-
-    // To get the file's complete download URL, we concatenate:
-    // - The update file URL, cutting down the update file name
-    // - Current products base URL plus a forward slash
-    // - Archive file name of the version
-    fileurl := _updatefileurl.Substring(0, _updatefileurl.LastIndexOf('/') + 1) + version.RelativeArchiveFileName('/');
-
-    If Not DownloadFile(fileurl, ms) Then
-      Exit;
-
-    ms.Position := 0;
-
-    If TFile.Exists(inFileName) then
-      TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
-
+    fs := TFileStream.Create(inFileName, fmCreate);
     Try
-      ms.SaveToFile(inFileName);
-    Except
-      On E:Exception Do
-      Begin
-        // If the extracting failed, make sure to rename the file back to its original name
-        // so it still can be accessed the next time the application starts
+      If Not DownloadFile(fileurl, fs) Then
         TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
-
-        Raise;
-      End;
+    Finally
+      fs.Free;
     End;
-  Finally
-    ms.Free;
+  Except
+    On E:Exception Do
+    Begin
+      // If the extracting failed, make sure to rename the file back to its original name
+      // so it still can be accessed the next time the application starts
+      TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
+
+      Raise;
+    End;
   End;
 End;
 
