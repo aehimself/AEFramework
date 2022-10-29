@@ -2,7 +2,7 @@
 
 Interface
 
-Uses AE.Comp.Updater.FileProvider, System.Classes, System.IOUtils;
+Uses AE.Comp.Updater.FileProvider, System.Classes;
 
 Type
   TAEUpdaterFlatFileProvider = Class(TAEUpdaterFileProvider)
@@ -13,7 +13,7 @@ Type
 
 Implementation
 
-Uses System.SysUtils;
+Uses System.SysUtils, System.IOUtils;
 
 Procedure TAEUpdaterFlatFileProvider.InternalProvideFile(Const inFileName: String; Const outStream: TStream);
 Var

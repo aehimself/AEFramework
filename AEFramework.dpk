@@ -41,7 +41,6 @@ contains
   AE.Misc.ByteUtils in 'AE.Misc.ByteUtils.pas',
   AE.Misc.FileUtils in 'AE.Misc.FileUtils.pas',
   AE.Misc.Random in 'AE.Misc.Random.pas',
-  AE.Updater.UpdateFile in 'AE.Updater.UpdateFile.pas',
   AE.Application.Application in 'AE.Application.Application.pas',
   AE.Application.Console in 'AE.Application.Console.pas',
   AE.Application.Engine in 'AE.Application.Engine.pas',
@@ -58,6 +57,7 @@ contains
   AE.Comp.Updater.FileProvider in 'AE.Comp.Updater.FileProvider.pas',
   AE.Comp.Updater.FileProvider.HTTP in 'AE.Comp.Updater.FileProvider.HTTP.pas',
   AE.Comp.Updater.FileProvider.Flat in 'AE.Comp.Updater.FileProvider.Flat.pas',
-  AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas';
+  AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas',
+  AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas';
 
 end.

@@ -1,4 +1,4 @@
-﻿Unit AE.Updater.UpdateFile;
+﻿Unit AE.Comp.Updater.UpdateFile;
 
 Interface
 
@@ -126,7 +126,7 @@ Type
 
 Implementation
 
-Uses System.SysUtils;
+Uses System.SysUtils, System.Generics.Defaults;
 
 Const
   TXT_ARCHIVEFILENAME = 'archivefilename';
@@ -285,21 +285,15 @@ Begin
 End;
 
 Function TAEUpdaterProductFile.GetVersions: TArray<UInt64>;
-Var
-  a, b: Integer;
-  tmp: UInt64;
 Begin
   Result := _versions.Keys.ToArray;
 
-  // Quickly sort the results in a descending order => latest version first
-  For a := Low(Result) To High(Result) - 1 Do
-    For b := a + 1 To High(Result) Do
-      If Result[a] < Result[b] Then
-      Begin
-        tmp := Result[a];
-        Result[a] := Result[b];
-        Result[b] := tmp;
-      End;
+  TArray.Sort<UInt64>(Result, TComparer<UInt64>.Construct(
+    Function(Const Left, Right: UInt64): Integer
+    Begin
+      Result := -1 * TComparer<Double>.Default.Compare(Left, Right);
+    End
+  ));
 End;
 
 Procedure TAEUpdaterProductFile.InternalClear;

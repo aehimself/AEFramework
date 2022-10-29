@@ -2,7 +2,7 @@
 
 Interface
 
-Uses System.Classes, AE.Updater.UpdateFile, System.SysUtils, System.Generics.Collections, AE.Comp.Updater.FileProvider;
+Uses System.Classes, AE.Comp.Updater.UpdateFile, System.SysUtils, System.Generics.Collections, AE.Comp.Updater.FileProvider;
 
 Type
   EAEUpdaterException = Class(Exception);
@@ -51,7 +51,7 @@ Type
 
 Implementation
 
-Uses AE.Misc.FileUtils, System.IOUtils;
+Uses AE.Misc.FileUtils, System.IOUtils, System.Generics.Defaults;
 
 Const
   OLDVERSIONEXT = '.aeupdater.tmp';
@@ -177,21 +177,15 @@ Begin
 End;
 
 Function TAEUpdater.GetMessages: TArray<UInt64>;
-Var
-  a, b: Integer;
-  tmp: UInt64;
 Begin
   Result := _availablemessages.ToArray;
 
-  // Quickly sort the results in a descending order => latest message first
-  For a := Low(Result) To High(Result) - 1 Do
-    For b := a + 1 To High(Result) Do
-      If Result[a] < Result[b] Then
-      Begin
-        tmp := Result[a];
-        Result[a] := Result[b];
-        Result[b] := tmp;
-      End;
+  TArray.Sort<UInt64>(Result, TComparer<UInt64>.Construct(
+    Function(Const Left, Right: UInt64): Integer
+    Begin
+      Result := -1 * TComparer<Double>.Default.Compare(Left, Right);
+    End
+  ));
 End;
 
 Function TAEUpdater.GetUpdateableFiles: TArray<String>;

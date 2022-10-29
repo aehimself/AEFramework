@@ -114,7 +114,6 @@
         <DCCReference Include="AE.Misc.ByteUtils.pas"/>
         <DCCReference Include="AE.Misc.FileUtils.pas"/>
         <DCCReference Include="AE.Misc.Random.pas"/>
-        <DCCReference Include="AE.Updater.UpdateFile.pas"/>
         <DCCReference Include="AE.Application.Application.pas"/>
         <DCCReference Include="AE.Application.Console.pas"/>
         <DCCReference Include="AE.Application.Engine.pas"/>
@@ -132,6 +131,7 @@
         <DCCReference Include="AE.Comp.Updater.FileProvider.HTTP.pas"/>
         <DCCReference Include="AE.Comp.Updater.FileProvider.Flat.pas"/>
         <DCCReference Include="AE.Comp.Updater.FileProvider.Custom.pas"/>
+        <DCCReference Include="AE.Comp.Updater.UpdateFile.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
