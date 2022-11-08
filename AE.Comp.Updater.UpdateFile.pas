@@ -2,7 +2,7 @@
 
 Interface
 
-Uses AE.Application.Settings, System.JSON, System.Generics.Collections, System.Classes;
+Uses AE.Application.Setting, System.JSON, System.Generics.Collections, System.Classes;
 
 Type
   TAEUpdaterChannel = (aucProduction, aucEarlyAccess, aucInternal);

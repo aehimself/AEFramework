@@ -58,6 +58,7 @@ contains
   AE.Comp.Updater.FileProvider.HTTP in 'AE.Comp.Updater.FileProvider.HTTP.pas',
   AE.Comp.Updater.FileProvider.Flat in 'AE.Comp.Updater.FileProvider.Flat.pas',
   AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas',
-  AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas';
+  AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas',
+  AE.Application.Setting in 'AE.Application.Setting.pas';
 
 end.
