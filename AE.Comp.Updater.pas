@@ -31,6 +31,7 @@ Type
     Function GetUpdateableFileVersions(Const inFileName: String): TArray<UInt64>;
   public
     Class Procedure Cleanup;
+    Class Procedure Rollback(Const inFileName: String);
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
     Procedure CheckForUpdates;
@@ -159,6 +160,17 @@ Begin
   Finally
     FreeAndNil(ms);
   End;
+End;
+
+Class Procedure TAEUpdater.Rollback(Const inFileName: String);
+Begin
+  If Not TFile.Exists(inFileName + OLDVERSIONEXT) Then
+    Exit;
+
+  If TFile.Exists(inFileName) Then
+    TFile.Delete(inFileName);
+
+  TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
 End;
 
 Function TAEUpdater.GetActualProduct: TAEUpdaterProduct;
@@ -334,9 +346,7 @@ Begin
     Begin
       // If the extracting failed, make sure to rename the file back to its original name
       // so it still can be accessed the next time the application starts
-      If TFile.Exists(inFileName) Then
-        TFile.Delete(inFileName);
-      TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
+      Self.Rollback(inFileName);
 
       Raise;
     End;
