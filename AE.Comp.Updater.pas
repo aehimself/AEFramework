@@ -317,7 +317,9 @@ Begin
   // - Archive file name of the version
   fileurl := _fileprovider.UpdateRoot + version.RelativeArchiveFileName('/');
 
-  If TFile.Exists(inFileName) then
+  If TFile.Exists(inFileName + OLDVERSIONEXT) Then
+    TFile.Delete(inFileName + OLDVERSIONEXT);
+  If TFile.Exists(inFileName) Then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
   Try
     fs := TFileStream.Create(inFileName, fmCreate);
@@ -332,6 +334,8 @@ Begin
     Begin
       // If the extracting failed, make sure to rename the file back to its original name
       // so it still can be accessed the next time the application starts
+      If TFile.Exists(inFileName) Then
+        TFile.Delete(inFileName);
       TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
 
       Raise;
