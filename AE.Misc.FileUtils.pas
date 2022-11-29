@@ -23,6 +23,14 @@ Implementation
 
 Uses WinApi.Windows, System.SysUtils, System.DateUtils, System.Hash;
 
+Type
+  TTranslation = Record
+    Language: Word;
+    CharSet: Word;
+  End;
+  TTranslations = Array[0..20] Of TTranslation;
+  PTranslations = ^TTranslations;
+
 Const
   MAJORDIV: UInt64 = 1000000000000000; // 100000^3
   MINORDIV: UInt64 = 10000000000; // 100000^2
@@ -30,29 +38,29 @@ Const
 
 Function FileInfo(Const inFileName, inInfoName: String): String;
 Var
-  buf: PChar;
-  value: PChar;
-  len, n: Cardinal;
+  buf, value, infoname: PChar;
+  len, n, count: Cardinal;
+  trans: PTranslations;
+  a: Integer;
 Begin
   Result := '';
+
   n := GetFileVersionInfoSize(PChar(inFileName), n);
   If n = 0 Then
     Exit;
+
   buf := AllocMem(n);
   Try
-    GetFileVersionInfo(PChar(inFileName), 0, n, buf);
-    If VerQueryValue(Pointer(buf),
-      PChar('StringFileInfo\040904E4\' + inInfoName), Pointer(value), len) Or
-    // English (US), multilingual
-      VerQueryValue(Pointer(buf),
-      PChar('StringFileInfo\040904B0\' + inInfoName), Pointer(value), len) Or
-    // English (US), Unicode
-      VerQueryValue(Pointer(buf),
-      PChar('StringFileInfo\040704B0\' + inInfoName), Pointer(value), len) Then
-    Begin // German, Unicode
-      value := PChar(Trim(value));
-      If Length(value) > 0 Then
-        Result := value;
+    If Not GetFileVersionInfo(PChar(inFileName), 0, n, buf) Or
+       Not VerQueryValue(Pointer(buf), '\VarFileInfo\Translation', Pointer(trans), count) Then
+      Exit;
+
+    For a := 0 To count Div SizeOf(TTranslation) - 1 Do
+    Begin
+      infoname := PChar('StringFileInfo\' + IntToHex(trans^[a].Language, 4) + IntToHex(trans^[a].CharSet,4) + '\' + inInfoName);
+
+      If VerQueryValue(Pointer(buf), infoname, Pointer(value), len) Then
+        Exit(Copy(value, 1, len));
     End;
   Finally
     FreeMem(buf, n);
@@ -86,11 +94,11 @@ Begin
   n := GetFileVersionInfoSize(PChar(inFileName), len);
   If n = 0 Then
     Exit;
+
   GetMem(buf, n);
   Try
     GetFileVersionInfo(PChar(inFileName), 0, n, buf);
-    If Not VerQueryValue(buf, '\', p, len) Or
-      (len <> SizeOf(TVSFixedFileInfo)) Then
+    If Not VerQueryValue(buf, '\', p, len) Or (len <> SizeOf(TVSFixedFileInfo)) Then
       Exit;
 
     fi := PVSFixedFileInfo(p)^;

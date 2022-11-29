@@ -221,11 +221,11 @@ Var
   pfile: TAEUpdaterProductFile;
   pver: TAEUpdaterProductFileVersion;
 Begin
-  fname := ExtractFileName(ParamStr(0));
-  product := _updatefile.Product[_product];
+  fname := FileInfo(ParamStr(0), 'OriginalFileName');
+  If fname.IsEmpty Then
+    fname := ExtractFileName(ParamStr(0));
 
-  If Not product.ContainsFile(fname) Then
-    Raise EAEUpdaterException.Create('Product name is not provided!');
+  product := _updatefile.Product[_product];
 
   If Not _updatefile.ContainsProduct(_product) Then
     Exit;
