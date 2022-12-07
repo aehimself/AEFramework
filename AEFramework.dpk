@@ -33,7 +33,8 @@ requires
   vcl,
   vclwinx,
   dbrtl,
-  vcldb;
+  vcldb,
+  vclx;
 
 contains
   AE.Comp.PageControl in 'AE.Comp.PageControl.pas',
@@ -59,6 +60,7 @@ contains
   AE.Comp.Updater.FileProvider.Flat in 'AE.Comp.Updater.FileProvider.Flat.pas',
   AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas',
   AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas',
-  AE.Application.Setting in 'AE.Application.Setting.pas';
+  AE.Application.Setting in 'AE.Application.Setting.pas',
+  AE.DelphiVersions in 'AE.DelphiVersions.pas';
 
 end.

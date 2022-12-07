@@ -109,6 +109,7 @@
         <DCCReference Include="vclwinx.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="vcldb.dcp"/>
+        <DCCReference Include="vclx.dcp"/>
         <DCCReference Include="AE.Comp.PageControl.pas"/>
         <DCCReference Include="AE.Comp.ThreadedTimer.pas"/>
         <DCCReference Include="AE.Misc.ByteUtils.pas"/>
@@ -133,6 +134,7 @@
         <DCCReference Include="AE.Comp.Updater.FileProvider.Custom.pas"/>
         <DCCReference Include="AE.Comp.Updater.UpdateFile.pas"/>
         <DCCReference Include="AE.Application.Setting.pas"/>
+        <DCCReference Include="AE.DelphiVersions.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
