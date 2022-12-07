@@ -2,7 +2,7 @@
 
 Interface
 
-Uses System.Generics.Collections, WinApi.Windows;
+Uses System.Generics.Collections, WinApi.Windows, System.SysUtils;
 
 Type
   TDelphiInstance = Class
@@ -10,7 +10,7 @@ Type
     _ddehwnd: HWND;
     _idehwnd: HWND;
     _pid: Cardinal;
-    Function GlobalLockString(AValue: string; AFlags: UINT): THandle;
+    Function GlobalLockString(inString: string; inFlags: UINT): THandle;
   public
     Constructor Create(Const inPID: Cardinal; Const inDDEHWND: HWND);
     Procedure FindIdeWindow;
@@ -78,13 +78,41 @@ Type
     Property InstalledVersions: TArray<TBorlandDelphiVersion> Read GetInstalledVersions;
   End;
 
+  EDelphiVersionException = Class(Exception);
+
 Implementation
 
-Uses System.Win.Registry, System.SysUtils, System.Classes, Vcl.DdeMan, WinApi.DDEml, WinApi.PsAPI, WinAPi.Messages;
+Uses System.Win.Registry, System.Classes, Vcl.DdeMan, WinApi.DDEml, WinApi.PsAPI, WinAPi.Messages;
+
+Type
+  TWindowInfo = Record
+    ProcessID: Cardinal;
+    HWND: HWND;
+  End;
+  PWindowInfo = ^TWindowInfo;
 
 Const
   DDESERVICE = 'bds';
   DDETOPIC = 'system';
+
+
+Function EnumWindowsProc(inHWND: HWND; inParam: LParam): Boolean; StdCall;
+Var
+  ppid: Cardinal;
+  title, classname: Array[0..255] Of Char;
+Begin
+  // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms633498(v=vs.85)
+  // Result := True   ->   Continue evaluation
+  // Result := False  ->   Do not continue evaluation
+
+  GetWindowThreadProcessID(inHWND, ppid);
+  GetWindowText(inHWND, title, 255);
+  GetClassName(inHWND, classname, 255);
+
+  Result := (ppid <> PWindowInfo(inParam)^.ProcessID) Or Not IsWindowVisible(inHWND) Or (Not IsWindowEnabled(inHWND)) Or Not (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
+  If Not Result Then
+    PWindowInfo(inParam)^.HWND := inHWND;
+End;
 
 //
 // TDelphiInstance
@@ -102,29 +130,29 @@ End;
 
 Procedure TDelphiInstance.OpenFile(Const inFileName: String);
 Var
-  aService, aTopic: word;
-  ddeCommandH: THandle;
+  atomservice, atomtopic: Word;
+  commandhandle: THandle;
   msghwnd: HWND;
   cmd: String;
 Begin
   msghwnd := AllocateHwnd(nil);
   Try
-    aService := GlobalAddAtom(PChar(DDESERVICE));
-    aTopic := GlobalAddAtom(PChar(DDETOPIC));
+    atomservice := GlobalAddAtom(PChar(DDESERVICE));
+    atomtopic := GlobalAddAtom(PChar(DDETOPIC));
     Try
-      SendMessage(_ddehwnd, WM_DDE_INITIATE, msghwnd, Makelong(aService, aTopic));
+      SendMessage(_ddehwnd, WM_DDE_INITIATE, msghwnd, Makelong(atomservice, atomtopic));
     Finally
-      GlobalDeleteAtom(aService);
-      GlobalDeleteAtom(aTopic);
+      GlobalDeleteAtom(atomservice);
+      GlobalDeleteAtom(atomtopic);
     End;
 
     cmd := '[open("' + inFileName + '")]';
-    ddeCommandH := GlobalLockString(cmd, GMEM_DDESHARE);
+    commandhandle := GlobalLockString(cmd, GMEM_DDESHARE);
     Try
-      PostMessage(_ddehwnd, WM_DDE_EXECUTE, msghwnd, ddeCommandH);
+      PostMessage(_ddehwnd, WM_DDE_EXECUTE, msghwnd, commandhandle);
     Finally
-      GlobalUnlock(ddeCommandH);
-      GlobalFree(ddeCommandH);
+      GlobalUnlock(commandhandle);
+      GlobalFree(commandhandle);
     End;
   Finally
     DeAllocateHwnd(msghwnd);
@@ -132,47 +160,33 @@ Begin
 End;
 
 Procedure TDelphiInstance.FindIdeWindow;
-Type
-  TEnumInfo = Record
-    ProcessID: DWORD;
-    HWND: THandle;
-  End;
-
-  Function EnumWindowsProc(inHWND: DWORD; Var outEnumInfo: TEnumInfo): Bool; StdCall;
-  Var
-    ppid: DWORD;
-    title, classname: Array[0..255] Of Char;
-  Begin
-    GetWindowThreadProcessID(inHWND, @ppid);
-    GetWindowText(inHWND, title, 255);
-    GetClassName(inHWND, classname, 255);
-
-    Result := (ppid <> outEnumInfo.ProcessID) Or Not IsWindowVisible(inHWND) Or (Not IsWindowEnabled(inHWND)) Or Not (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
-    If Not Result Then
-      outEnumInfo.HWND := inHWND;
-  End;
-
 Var
-  EI: TEnumInfo;
-
+  info: PWindowInfo;
 Begin
-  EI.ProcessID := _pid;
-  EI.HWND := 0;
-  EnumWindows(@EnumWindowsProc, Integer(@EI));
-  _idehwnd := EI.HWND;
+  New(info);
+  Try
+   info^.ProcessID := _pid;
+   info^.HWND := 0;
+
+   EnumWindows(@EnumWindowsProc, LParam(info));
+
+   _idehwnd := info^.HWND;
+  Finally
+   Dispose(info);
+  End;
 End;
 
-Function TDelphiInstance.GlobalLockString(AValue: String; AFlags: UINT): THandle;
+Function TDelphiInstance.GlobalLockString(inString: String; inFlags: UINT): THandle;
 Var
-  DataPtr: Pointer;
-  B: TBytes;
+  strlock: Pointer;
+  tb: TBytes;
 Begin
-  Result := GlobalAlloc(GMEM_ZEROINIT Or AFlags, (Length(AValue) + 1) * SizeOf(Char));
+  Result := GlobalAlloc(GMEM_ZEROINIT Or inFlags, (Length(inString) + 1) * SizeOf(Char));
   Try
-    DataPtr := GlobalLock(Result);
-    B := BytesOf(AValue);
-    SetLength(B, Length(B) + 1);
-    Move(PChar(AValue)^, DataPtr^, Length(AValue) * SizeOf(Char));
+    strlock := GlobalLock(Result);
+    tb := BytesOf(inString);
+    SetLength(tb, Length(tb) + 1);
+    Move(PChar(inString)^, strlock^, Length(inString) * SizeOf(Char));
   Except
     GlobalFree(Result);
     Raise;
@@ -183,18 +197,18 @@ Function TDelphiInstance.IsIDEBusy: Boolean;
 Var
   res: NativeInt;
 Begin
-  Result := False;
+  If _idehwnd = 0 Then
+    Raise EDelphiVersionException.Create('Delphi IDE window is not found yet!');
 
-  res := SendMessageTimeout(_idehwnd, WM_NULL, 0, 0, SMTO_BLOCK, 250, nil);
-  If res <> 0 Then
+  Result := SendMessageTimeout(_idehwnd, WM_NULL, 0, 0, SMTO_BLOCK, 250, nil) <> 0;
+
+  If Not Result Then
     Exit;
 
   res := GetLastError;
 
   If res <> ERROR_TIMEOUT Then
     RaiseLastOSError(res);
-
-  Result := True;
 End;
 
 //
@@ -224,32 +238,32 @@ Begin
   Result := _instances.Count > 0;
 End;
 
-Function TBorlandDelphiVersion.ProcessName(const inPID: Cardinal): String;
+Function TBorlandDelphiVersion.ProcessName(Const inPID: Cardinal): String;
 Var
-  hProcess: THandle;
+  processhandle: THandle;
 Begin
-  hProcess := OpenProcess(PROCESS_QUERY_INFORMATION Or PROCESS_VM_READ, False, inPID);
-  If hProcess = 0 Then
+  processhandle := OpenProcess(PROCESS_QUERY_INFORMATION Or PROCESS_VM_READ, False, inPID);
+  If processhandle = 0 Then
     RaiseLastOSError;
 
   Try
     SetLength(Result, MAX_PATH);
     FillChar(Result[1], Length(Result) * SizeOf(Char), 0);
-    If GetModuleFileNameEx(hProcess, 0, PChar(Result), Length(Result)) = 0 Then
+    If GetModuleFileNameEx(processhandle, 0, PChar(Result), Length(Result)) = 0 Then
       RaiseLastOSError;
 
     Result := Trim(Result);
   Finally
-    CloseHandle(hProcess)
+    CloseHandle(processhandle)
   End;
 End;
 
 Procedure TBorlandDelphiVersion.RefreshInstances;
 Var
-  lHszApp, lHszTopic: HSZ;
-  ConvList: HConvList;
-  Conv: HConv;
-  ci: TConvInfo;
+  apphandle, topichandle: HSZ;
+  convlist: HConvList;
+  conv: HConv;
+  convinfo: TConvInfo;
   pid: Cardinal;
 Begin
   // DDE logic by Attila Kovacs
@@ -257,30 +271,30 @@ Begin
 
   _instances.Clear;
 
-  lHszApp := DdeCreateStringHandleW(ddeMgr.DdeInstId, PChar(DDESERVICE), CP_WINUNICODE);
-  lHszTopic := DdeCreateStringHandleW(ddeMgr.DdeInstId, PChar(DDETOPIC), CP_WINUNICODE);
+  apphandle := DdeCreateStringHandleW(ddeMgr.DdeInstId, PChar(DDESERVICE), CP_WINUNICODE);
+  topichandle := DdeCreateStringHandleW(ddeMgr.DdeInstId, PChar(DDETOPIC), CP_WINUNICODE);
   Try
-    ConvList := DdeConnectList(ddeMgr.DdeInstId, lHszApp, lHszTopic, 0, nil);
+    convlist := DdeConnectList(ddeMgr.DdeInstId, apphandle, topichandle, 0, nil);
     Try
-      Conv := 0;
+      conv := 0;
       Repeat
-        Conv := DdeQueryNextServer(ConvList, Conv);
-        If Conv = 0 Then
+        conv := DdeQueryNextServer(convlist, conv);
+        If conv = 0 Then
           Break;
 
-        ci.cb := SizeOf(TConvInfo);
-        DdeQueryConvInfo(Conv, QID_SYNC, @ci);
+        convinfo.cb := SizeOf(TConvInfo);
+        DdeQueryConvInfo(conv, QID_SYNC, @convinfo);
 
-        GetWindowThreadProcessId(ci.hwndPartner, pid);
+        GetWindowThreadProcessId(convinfo.hwndPartner, pid);
         If ProcessName(pid).ToLower = _bdspath.ToLower Then
-          _instances.Add(TDelphiInstance.Create(pid, ci.hwndPartner));
-      Until (Conv = 0);
+          _instances.Add(TDelphiInstance.Create(pid, convinfo.hwndPartner));
+      Until (conv = 0);
     Finally
-     DdeDisconnectList(ConvList);
+     DdeDisconnectList(convlist);
     End;
   Finally
-    DdeFreeStringHandle(ddeMgr.DdeInstId, lHszApp);
-    DdeFreeStringHandle(ddeMgr.DdeInstId, lHszTopic);
+    DdeFreeStringHandle(ddeMgr.DdeInstId, apphandle);
+    DdeFreeStringHandle(ddeMgr.DdeInstId, topichandle);
   End;
 End;
 
