@@ -221,7 +221,7 @@ Begin
   If _idehwnd = 0 Then
     Raise EDelphiVersionException.Create('Delphi IDE window is not found yet!');
 
-  Result := SendMessageTimeout(_idehwnd, WM_NULL, 0, 0, SMTO_BLOCK, 250, nil) <> 0;
+  Result := SendMessageTimeout(_idehwnd, WM_NULL, 0, 0, SMTO_BLOCK, 250, nil) = 0;
 
   If Not Result Then
     Exit;
@@ -238,7 +238,7 @@ End;
 
 Class Function TBorlandDelphiVersion.BDSRoot: String;
 Begin
-  Result := 'SOFTWARE\Borland\Delphi'
+  Result := 'SOFTWARE\Borland\Delphi';
 End;
 
 Constructor TBorlandDelphiVersion.Create(inOwner: TComponent; Const inBDSPath: String; Const inVersionNumber: Byte);
