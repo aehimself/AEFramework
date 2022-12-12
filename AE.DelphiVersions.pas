@@ -7,49 +7,40 @@ Uses System.Generics.Collections, WinApi.Windows, System.SysUtils, System.Classe
 Type
   TDelphiDDEManager = Class
   strict private
-    _ddeid: Integer;
+    _ddeid: Cardinal;
     _service: String;
     _servicehandle: HSZ;
     _topic: String;
     _topichandle: HSZ;
-    Procedure SetService(Const inService: String);
-    Procedure SetTopic(Const inTopic: String);
     Function GetDDEInstances: TArray<HWND>;
     Function GlobalLockString(inString: string; inFlags: UINT): THandle;
   public
-    Constructor Create; ReIntroduce;
+    Constructor Create(Const inService, inTopic: String); ReIntroduce;
     Destructor Destroy; Override;
     Procedure OpenFile(Const inFileName: String; Const inDDEServerHWND: HWND; Const inTimeOutInMs: Integer = 5000);
-    Property DDEId: Integer Read _ddeid;
     Property DDEInstances: TArray<HWND> Read GetDDEInstances;
-    Property Service: String Read _service Write SetService;
-    Property ServiceHandle: HSZ Read _servicehandle;
-    Property Topic: String Read _topic Write SetTopic;
-    Property TopicHandle: HSZ Read _topichandle;
   End;
 
   TDelphiInstance = Class(TComponent)
   strict private
-    _ddemgr: TDelphiDDEManager;
     _ddehwnd: HWND;
     _idehwnd: HWND;
     _idecaption: String;
     _pid: Cardinal;
   public
-    Constructor Create(inOwner: TComponent; Const inDDEManager: TDelphiDDEManager; Const inPID: Cardinal; Const inDDEHWND: HWND); ReIntroduce;
+    Constructor Create(inOwner: TComponent; Const inPID: Cardinal; Const inDDEHWND: HWND); ReIntroduce;
     Procedure OpenFile(Const inFileName: String);
-    Function FindIdeWindow: Boolean;
+    Procedure UpdateCaption;
+    Function FindIdeWindow(Const inForceSearch: Boolean = False): Boolean;
     Function IsIDEBusy: Boolean;
     Property IDECaption: String Read _idecaption;
     Property IDEHWND: HWND Read _idehwnd;
     Property PID: Cardinal Read _pid;
-    Property DDEHWND: HWND Read _ddehwnd;
   End;
 
   TBorlandDelphiVersion = Class(TComponent)
   strict private
     _bdspath: String;
-    _ddemgr: TDelphiDDEManager;
     _instances: TObjectList<TDelphiInstance>;
     _name: String;
     _versionnumber: Byte;
@@ -59,11 +50,12 @@ Type
     Function GetDelphiName: String; Virtual;
   public
     Class Function BDSRoot: String; Virtual;
-    Constructor Create(inOwner: TComponent; Const inDDEManager: TDelphiDDEManager; Const inBDSPath: String; Const inVersionNumber: Byte); ReIntroduce;
+    Constructor Create(inOwner: TComponent; Const inBDSPath: String; Const inVersionNumber: Byte); ReIntroduce;
     Destructor Destroy; Override;
     Procedure RefreshInstances;
     Function InstanceByPID(Const inPID: Cardinal): TDelphiInstance;
     Function IsRunning: Boolean;
+    Function NewDelphiInstance: TDelphiInstance;
     Property BDSPath: String Read _bdspath;
     Property Instances: TArray<TDelphiInstance> Read GetInstances;
     Property Name: String Read _name;
@@ -95,7 +87,6 @@ Type
 
   TDelphiVersions = Class(TComponent)
   strict private
-    _ddemgr: TDelphiDDEManager;
     _latestversion: TBorlandDelphiVersion;
     _versions: TObjectList<TBorlandDelphiVersion>;
     Function GetInstalledVersions: TArray<TBorlandDelphiVersion>;
@@ -110,6 +101,7 @@ Type
 
   EDelphiVersionException = Class(Exception);
 
+Function DdeInitializeW(Var Inst: DWORD; Callback: TFNCallback; Cmd, Res: Longint): Longint; StdCall; External user32;
 Function UnpackDDElParam(msg: UINT; lParam: LPARAM; puiLo, puiHi: PUINT_PTR): BOOL; StdCall; External user32;
 Function FreeDDElParam(msg: UINT; lParam: LPARAM): BOOL; StdCall; External user32;
 
@@ -118,12 +110,12 @@ Implementation
 Uses System.Win.Registry, WinApi.PsAPI;
 
 Type
-  TWindowInfo = Record
+  TDelphiIDEInfo = Record
     outHWND: HWND;
     outWindowCaption: String;
     PID: Cardinal;
   End;
-  PWindowInfo = ^TWindowInfo;
+  PDelphiIDEInfo = ^TDelphiIDEInfo;
 
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
@@ -138,13 +130,13 @@ Begin
   GetWindowText(inHWND, title, 255);
   GetClassName(inHWND, classname, 255);
 
-  Result := (ppid <> PWindowInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or (Not IsWindowEnabled(inHWND)) Or Not
+  Result := (ppid <> PDelphiIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or (Not IsWindowEnabled(inHWND)) Or Not
     (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
 
   If Not Result Then
   Begin
-    PWindowInfo(inParam)^.outHWND := inHWND;
-    PWindowInfo(inParam)^.outWindowCaption := title;
+    PDelphiIDEInfo(inParam)^.outHWND := inHWND;
+    PDelphiIDEInfo(inParam)^.outWindowCaption := title;
   End;
 End;
 
@@ -154,33 +146,41 @@ End;
 // https://en.delphipraxis.net/topic/7955-how-to-open-a-file-in-the-already-running-ide/?do=findComment&comment=66850
 //
 
-Constructor TDelphiDDEManager.Create;
+Constructor TDelphiDDEManager.Create(Const inService, inTopic: String);
 Begin
-  inherited;
+  inherited Create;
 
-  _ddeid := 0;
-  _service := '';
+  _service := inService;
   _servicehandle := 0;
-  _topic := '';
+  _topic := inTopic;
   _topichandle := 0;
 
   If DdeInitializeW(_ddeid, nil, APPCMD_CLIENTONLY, 0) <> DMLERR_NO_ERROR Then
     Raise EDelphiVersionException.Create('DDE initialization failed!');
 
-  Self.Service := 'bds';
-  Self.Topic := 'system';
+  _servicehandle := DdeCreateStringHandleW(_ddeid, PChar(_service), CP_WINUNICODE);
+  If _servicehandle = 0 Then
+    Raise EDelphiVersionException.Create('Creating service handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+
+  DdeKeepStringHandle(_ddeid, _servicehandle);
+
+  _topichandle := DdeCreateStringHandleW(_ddeid, PChar(_topic), CP_WINUNICODE);
+  If _topichandle = 0 Then
+    Raise EDelphiVersionException.Create('Creating topic handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+
+  DdeKeepStringHandle(_ddeid, _topichandle);
 End;
 
 Destructor TDelphiDDEManager.Destroy;
 Begin
-  Self.Service := '';
-  Self.Topic := '';
+  If _servicehandle <> 0 Then
+    DdeFreeStringHandle(_ddeid, _servicehandle);
+
+  If _topichandle <> 0 Then
+    DdeFreeStringHandle(_ddeid, _topichandle);
 
   If _ddeid <> 0 Then
-  Begin
     DdeUninitialize(_ddeid);
-    _ddeid := 0;
-  End;
 
   inherited;
 End;
@@ -194,10 +194,10 @@ Var
 Begin
   SetLength(Result, 0);
 
-  convlist := DdeConnectList(ddeid, _servicehandle, _topichandle, 0, nil);
+  convlist := DdeConnectList(_ddeid, _servicehandle, _topichandle, 0, nil);
   If convlist = 0 Then
   Begin
-    res := DdeGetLastError(ddeid);
+    res := DdeGetLastError(_ddeid);
 
     // A DMLERR_NO_CONV_ESTABLISHED error means that there are no DDE servers currently running handling. In this case
     // exception should not be raised, it simply means no Delphi IDEs are running!
@@ -216,14 +216,14 @@ Begin
 
       convinfo.cb := SizeOf(TConvInfo);
       If DdeQueryConvInfo(conv, QID_SYNC, @convinfo) = 0 Then
-        Raise EDelphiVersionException.Create('Retrieving conversation information failed, DDE error ' + DdeGetLastError(ddeid).ToString);
+        Raise EDelphiVersionException.Create('Retrieving conversation information failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
       SetLength(Result, Length(Result) + 1);
       Result[High(Result)] := convinfo.hwndPartner;
     Until (conv = 0);
   Finally
     If Not DdeDisconnectList(convlist) Then
-      Raise EDelphiVersionException.Create('Releasing the list of Delphi DDE servers failed, DDE error ' + DdeGetLastError(ddeid).ToString);
+      Raise EDelphiVersionException.Create('Releasing the list of Delphi DDE servers failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
   End;
 End;
 
@@ -299,52 +299,6 @@ Begin
   End;
 End;
 
-Procedure TDelphiDDEManager.SetService(Const inService: String);
-Begin
-  If inService = _service Then
-    Exit;
-
-  If _servicehandle <> 0 Then
-  Begin
-    DdeFreeStringHandle(_ddeid, _servicehandle);
-    _servicehandle := 0;
-  End;
-
-  _service := inService;
-
-  If inService.IsEmpty Then
-    Exit;
-
-  _servicehandle := DdeCreateStringHandleW(ddeid, PChar(_service), CP_WINUNICODE);
-  If _servicehandle = 0 Then
-    Raise EDelphiVersionException.Create('Creating service handle failed, DDE error ' + DdeGetLastError(ddeid).ToString);
-
-  DdeKeepStringHandle(ddeid, _servicehandle);
-End;
-
-Procedure TDelphiDDEManager.SetTopic(Const inTopic: String);
-Begin
-  If inTopic = _topic Then
-    Exit;
-
-  If _topichandle <> 0 Then
-  Begin
-    DdeFreeStringHandle(_ddeid, _topichandle);
-    _topichandle := 0;
-  End;
-
-  _topic := inTopic;
-
-  If _topic.IsEmpty Then
-    Exit;
-
-  _topichandle := DdeCreateStringHandleW(ddeid, PChar(_topic), CP_WINUNICODE);
-  If topichandle = 0 Then
-    Raise EDelphiVersionException.Create('Creating topic handle failed, DDE error ' + DdeGetLastError(ddeid).ToString);
-
-  DdeKeepStringHandle(ddeid, topichandle);
-End;
-
 Function TDelphiDDEManager.GlobalLockString(inString: String; inFlags: UINT): THandle;
 Var
   DataPtr: Pointer;
@@ -363,12 +317,11 @@ End;
 // TDelphiInstance
 //
 
-Constructor TDelphiInstance.Create(inOwner: TComponent; Const inDDEManager: TDelphiDDEManager; Const inPID: Cardinal; Const inDDEHWND: HWND);
+Constructor TDelphiInstance.Create(inOwner: TComponent; Const inPID: Cardinal; Const inDDEHWND: HWND);
 Begin
   inherited Create(inOwner);
 
   _ddehwnd := inDDEHWND;
-  _ddemgr := inDDEManager;
   _idehwnd := 0;
   _idecaption := '';
   _pid := inPID;
@@ -377,17 +330,44 @@ Begin
 End;
 
 Procedure TDelphiInstance.OpenFile(Const inFileName: String);
+Var
+  ddemgr: TDelphiDDEManager;
 Begin
   If Not IsWindow(_ddehwnd) Then
     Raise EDelphiVersionException.Create('DDE server gone away!');
 
-  _ddemgr.OpenFile(inFileName, _ddehwnd);
+  ddemgr := TDelphiDDEManager.Create('bds', 'system');
+  Try
+    ddemgr.OpenFile(inFileName, _ddehwnd);
+  Finally
+    FreeAndNil(ddemgr);
+  End;
 End;
 
-Function TDelphiInstance.FindIdeWindow: Boolean;
+Procedure TDelphiInstance.UpdateCaption;
 Var
-  info: PWindowInfo;
+  title: Array[0..255] Of Char;
 Begin
+  If Not FindIdeWindow Then
+    Raise EDelphiVersionException.Create('Delphi IDE window can not be found!');
+
+  GetWindowText(_idehwnd, title, 255);
+
+  _idecaption := title;
+End;
+
+Function TDelphiInstance.FindIdeWindow(Const inForceSearch: Boolean = False): Boolean;
+Var
+  info: PDelphiIDEInfo;
+Begin
+  If Not inForceSearch And (_idehwnd <> 0) And IsWindow(_idehwnd) Then
+  Begin
+    // IDE window was already found and seems to be still valid
+
+    Result := True;
+    Exit;
+  End;
+
   _idehwnd := 0;
   _idecaption := '';
 
@@ -412,11 +392,13 @@ Function TDelphiInstance.IsIDEBusy: Boolean;
 Var
   res: NativeInt;
 Begin
-  If (_idehwnd = 0) And Not FindIdeWindow Then
-    Raise EDelphiVersionException.Create('Delphi IDE window is not found yet!');
+  If Not FindIdeWindow Then
+    Raise EDelphiVersionException.Create('Delphi IDE window can not be found!');
 
-  If Not IsWindow(_idehwnd) And Not FindIdeWindow Then
-    Raise EDelphiVersionException.Create('Delphi IDE window gone away!');
+  Result := Not IsWindowVisible(_idehwnd);
+
+  If Not Result Then
+    Exit;
 
   Result := SendMessageTimeout(_idehwnd, WM_NULL, 0, 0, SMTO_BLOCK, 250, nil) = 0;
 
@@ -438,12 +420,11 @@ Begin
   Result := 'SOFTWARE\Borland\Delphi';
 End;
 
-Constructor TBorlandDelphiVersion.Create(inOwner: TComponent; Const inDDEManager: TDelphiDDEManager; Const inBDSPath: String; Const inVersionNumber: Byte);
+Constructor TBorlandDelphiVersion.Create(inOwner: TComponent; Const inBDSPath: String; Const inVersionNumber: Byte);
 Begin
   inherited Create(inOwner);
 
   _bdspath := inBDSPath;
-  _ddemgr := inDDEManager;
   _instances := TObjectList<TDelphiInstance>.Create(True);
   _versionnumber := inVersionNumber;
 
@@ -451,7 +432,7 @@ Begin
   If _name.IsEmpty Then
     _name := 'BDS ' + _versionnumber.ToString + '.0';
 
-  RefreshInstances;
+  Self.RefreshInstances;
 End;
 
 Function TBorlandDelphiVersion.InstanceByPID(Const inPID: Cardinal): TDelphiInstance;
@@ -471,6 +452,38 @@ End;
 Function TBorlandDelphiVersion.IsRunning: Boolean;
 Begin
   Result := _instances.Count > 0;
+End;
+
+Function TBorlandDelphiVersion.NewDelphiInstance: TDelphiInstance;
+Var
+  StartInfo  : TStartupInfo;
+  ProcInfo   : TProcessInformation;
+Begin
+  Result := nil;
+
+  FillChar(StartInfo, SizeOf(TStartupInfo), #0);
+  StartInfo.cb := SizeOf(TStartupInfo);
+  FillChar(ProcInfo, SizeOf(TProcessInformation), #0);
+
+  If Not CreateProcess(PChar(_bdspath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, StartInfo, ProcInfo) Then
+      RaiseLastOSError;
+
+  Try
+    WaitForInputIdle(procInfo.hProcess, INFINITE);
+
+    Repeat
+      Sleep(1000);
+
+      If Not Assigned(Result) Then
+      Begin
+        Self.RefreshInstances;
+        Result := Self.InstanceByPID(procinfo.dwProcessId);
+      End;
+    Until Assigned(Result) And Result.FindIdeWindow And Not Result.IsIDEBusy;
+  Finally
+    CloseHandle(ProcInfo.hThread);
+    CloseHandle(ProcInfo.hProcess);
+  End;
 End;
 
 Function TBorlandDelphiVersion.ProcessName(Const inPID: Cardinal): String;
@@ -497,14 +510,20 @@ Procedure TBorlandDelphiVersion.RefreshInstances;
 Var
   a: Cardinal;
   h: HWND;
+  ddemgr: TDelphiDDEManager;
 Begin
   _instances.Clear;
 
-  For h In _ddemgr.DDEInstances Do
-  Begin
-    GetWindowThreadProcessId(h, a);
-    If ProcessName(a).ToLower = _bdspath.ToLower Then
-      _instances.Add(TDelphiInstance.Create(Self, _ddemgr, a, h));
+  ddemgr := TDelphiDDEManager.Create('bds', 'system');
+  Try
+    For h In ddemgr.DDEInstances Do
+    Begin
+      GetWindowThreadProcessId(h, a);
+      If ProcessName(a).ToLower = _bdspath.ToLower Then
+        _instances.Add(TDelphiInstance.Create(Self, a, h));
+    End;
+  Finally
+    FreeAndNil(ddemgr);
   End;
 End;
 
@@ -649,7 +668,7 @@ Var
         Continue;
 
       Try
-        _latestversion := inDelphiVersionClass.Create(Self, _ddemgr, reg.ReadString('App'), Byte.Parse(s.Substring(0, s.IndexOf('.'))));
+        _latestversion := inDelphiVersionClass.Create(Self, reg.ReadString('App'), Byte.Parse(s.Substring(0, s.IndexOf('.'))));
 
         _versions.Add(_latestversion);
       Finally
@@ -661,7 +680,6 @@ Var
 Begin
   inherited;
 
-  _ddemgr := TDelphiDDEManager.Create;
   _latestversion := nil;
   _versions := TObjectList<TBorlandDelphiVersion>.Create(True);
 
@@ -686,7 +704,6 @@ End;
 Destructor TDelphiVersions.Destroy;
 Begin
   FreeAndNil(_versions);
-  FreeAndNil(_ddemgr);
 
   inherited;
 End;
