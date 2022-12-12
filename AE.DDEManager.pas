@@ -100,7 +100,7 @@ Var
 Begin
   mem := TEncoding.Unicode.GetBytes(inCommand);
 
-  hszCmd := DdeCreateDataHandle(_ddeid, @mem[0], Length(mem) + 1, 0, 0, CF_TEXT, 0);
+  hszCmd := DdeCreateDataHandle(_ddeid, @mem[0], Length(mem), 0, 0, CF_TEXT, 0);
   If hszCmd = 0 Then
     Raise EAEDDEManagerException.Create('Creating data handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
