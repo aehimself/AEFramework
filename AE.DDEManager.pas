@@ -94,17 +94,14 @@ End;
 
 Procedure TAEDDEManager.ExecuteCommand(Const inCommand: String; Const inPID: Cardinal; Const inTimeoutInMs: Cardinal = 5000);
 Var
-  hszCmd: HDDEData;
-  ddeRslt: LongInt;
-  mem: TBytes;
+  datahandle: HDDEData;
+  res: LongInt;
 Begin
-  mem := TEncoding.Unicode.GetBytes(inCommand);
-
-  hszCmd := DdeCreateDataHandle(_ddeid, @mem[0], Length(mem), 0, 0, CF_TEXT, 0);
-  If hszCmd = 0 Then
+  datahandle := DdeCreateDataHandle(_ddeid, @PChar(inCommand)[0], Length(inCommand) * SizeOf(Char), 0, 0, CF_TEXT, 0);
+  If datahandle = 0 Then
     Raise EAEDDEManagerException.Create('Creating data handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
-  If DdeClientTransaction(Pointer(hszCmd), DWORD(-1), _convs[inPID], 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @ddeRslt) = 0 Then
+  If DdeClientTransaction(Pointer(datahandle), DWORD(-1), _convs[inPID], 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @res) = 0 Then
     Raise EAEDDEManagerException.Create('Executing command failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
 //  If Not DdeFreeDataHandle(hszCmd) Then

@@ -279,20 +279,20 @@ End;
 
 Function TBorlandDelphiVersion.NewDelphiInstance: TDelphiInstance;
 Var
-  StartInfo  : TStartupInfo;
-  ProcInfo   : TProcessInformation;
+  startinfo: TStartupInfo;
+  procinfo: TProcessInformation;
 Begin
   Result := nil;
 
-  FillChar(StartInfo, SizeOf(TStartupInfo), #0);
-  StartInfo.cb := SizeOf(TStartupInfo);
-  FillChar(ProcInfo, SizeOf(TProcessInformation), #0);
+  FillChar(startinfo, SizeOf(TStartupInfo), #0);
+  startinfo.cb := SizeOf(TStartupInfo);
+  FillChar(procinfo, SizeOf(TProcessInformation), #0);
 
-  If Not CreateProcess(PChar(_bdspath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, StartInfo, ProcInfo) Then
-      RaiseLastOSError;
+  If Not CreateProcess(PChar(_bdspath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
+    RaiseLastOSError;
 
   Try
-    WaitForInputIdle(procInfo.hProcess, INFINITE);
+    WaitForInputIdle(procinfo.hProcess, INFINITE);
 
     Repeat
       Sleep(1000);
@@ -304,8 +304,8 @@ Begin
       End;
     Until Assigned(Result) And Result.FindIdeWindow And Not Result.IsIDEBusy;
   Finally
-    CloseHandle(ProcInfo.hThread);
-    CloseHandle(ProcInfo.hProcess);
+    CloseHandle(procinfo.hThread);
+    CloseHandle(procinfo.hProcess);
   End;
 End;
 
