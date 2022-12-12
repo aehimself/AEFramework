@@ -61,6 +61,7 @@ contains
   AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas',
   AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas',
   AE.Application.Setting in 'AE.Application.Setting.pas',
-  AE.DelphiVersions in 'AE.DelphiVersions.pas';
+  AE.DelphiVersions in 'AE.DelphiVersions.pas',
+  AE.DDEManager in 'AE.DDEManager.pas';
 
 end.

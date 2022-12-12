@@ -2,34 +2,23 @@
 
 Interface
 
-Uses System.Generics.Collections, WinApi.Windows, System.SysUtils, System.Classes, WinApi.Messages, WinApi.DDEml;
+Uses System.Generics.Collections, WinApi.Windows, System.SysUtils, System.Classes, WinApi.Messages, AE.DDEManager;
 
 Type
-  TDelphiDDEManager = Class
-  strict private
-    _ddeid: Cardinal;
-    _service: String;
-    _servicehandle: HSZ;
-    _topic: String;
-    _topichandle: HSZ;
-    Function GetDDEInstances: TArray<HWND>;
-    Function GlobalLockString(inString: string; inFlags: UINT): THandle;
+  TDelphiDDEManager = Class(TAEDDEManager)
   public
-    Constructor Create(Const inService, inTopic: String); ReIntroduce;
-    Destructor Destroy; Override;
-    Procedure OpenFile(Const inFileName: String; Const inDDEServerHWND: HWND; Const inTimeOutInMs: Integer = 5000);
-    Property DDEInstances: TArray<HWND> Read GetDDEInstances;
+    Constructor Create; ReIntroduce;
+    Procedure OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
   End;
 
   TDelphiInstance = Class(TComponent)
   strict private
-    _ddehwnd: HWND;
     _idehwnd: HWND;
     _idecaption: String;
     _pid: Cardinal;
   public
-    Constructor Create(inOwner: TComponent; Const inPID: Cardinal; Const inDDEHWND: HWND); ReIntroduce;
-    Procedure OpenFile(Const inFileName: String);
+    Constructor Create(inOwner: TComponent; Const inPID: Cardinal); ReIntroduce;
+    Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
     Procedure UpdateCaption;
     Function FindIdeWindow(Const inForceSearch: Boolean = False): Boolean;
     Function IsIDEBusy: Boolean;
@@ -101,10 +90,6 @@ Type
 
   EDelphiVersionException = Class(Exception);
 
-Function DdeInitializeW(Var Inst: DWORD; Callback: TFNCallback; Cmd, Res: Longint): Longint; StdCall; External user32;
-Function UnpackDDElParam(msg: UINT; lParam: LPARAM; puiLo, puiHi: PUINT_PTR): BOOL; StdCall; External user32;
-Function FreeDDElParam(msg: UINT; lParam: LPARAM): BOOL; StdCall; External user32;
-
 Implementation
 
 Uses System.Win.Registry, WinApi.PsAPI;
@@ -142,186 +127,27 @@ End;
 
 //
 // TDelphiDDEManager
-// DDE logic by Attila Kovacs
-// https://en.delphipraxis.net/topic/7955-how-to-open-a-file-in-the-already-running-ide/?do=findComment&comment=66850
 //
 
-Constructor TDelphiDDEManager.Create(Const inService, inTopic: String);
+Constructor TDelphiDDEManager.Create;
 Begin
-  inherited Create;
-
-  _service := inService;
-  _servicehandle := 0;
-  _topic := inTopic;
-  _topichandle := 0;
-
-  If DdeInitializeW(_ddeid, nil, APPCMD_CLIENTONLY, 0) <> DMLERR_NO_ERROR Then
-    Raise EDelphiVersionException.Create('DDE initialization failed!');
-
-  _servicehandle := DdeCreateStringHandleW(_ddeid, PChar(_service), CP_WINUNICODE);
-  If _servicehandle = 0 Then
-    Raise EDelphiVersionException.Create('Creating service handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
-
-  DdeKeepStringHandle(_ddeid, _servicehandle);
-
-  _topichandle := DdeCreateStringHandleW(_ddeid, PChar(_topic), CP_WINUNICODE);
-  If _topichandle = 0 Then
-    Raise EDelphiVersionException.Create('Creating topic handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
-
-  DdeKeepStringHandle(_ddeid, _topichandle);
+  inherited Create('bds', 'system');
 End;
 
-Destructor TDelphiDDEManager.Destroy;
+Procedure TDelphiDDEManager.OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal);
 Begin
-  If _servicehandle <> 0 Then
-    DdeFreeStringHandle(_ddeid, _servicehandle);
-
-  If _topichandle <> 0 Then
-    DdeFreeStringHandle(_ddeid, _topichandle);
-
-  If _ddeid <> 0 Then
-    DdeUninitialize(_ddeid);
-
-  inherited;
+  Self.ExecuteCommand('[open("' + inFileName + '")]', inPID, inTimeoutInMs);
 End;
 
-Function TDelphiDDEManager.GetDDEInstances: TArray<HWND>;
-Var
-  convlist: HConvList;
-  conv: HConv;
-  convinfo: TConvInfo;
-  res: Cardinal;
-Begin
-  SetLength(Result, 0);
-
-  convlist := DdeConnectList(_ddeid, _servicehandle, _topichandle, 0, nil);
-  If convlist = 0 Then
-  Begin
-    res := DdeGetLastError(_ddeid);
-
-    // A DMLERR_NO_CONV_ESTABLISHED error means that there are no DDE servers currently running handling. In this case
-    // exception should not be raised, it simply means no Delphi IDEs are running!
-    If res = DMLERR_NO_CONV_ESTABLISHED Then
-      Exit
-    Else
-      Raise EDelphiVersionException.Create('Retrieving the list of Delphi DDE servers failed, DDE error ' + res.ToString);
-  End;
-
-  Try
-    conv := 0;
-    Repeat
-      conv := DdeQueryNextServer(convlist, conv);
-      If conv = 0 Then
-        Break;
-
-      convinfo.cb := SizeOf(TConvInfo);
-      If DdeQueryConvInfo(conv, QID_SYNC, @convinfo) = 0 Then
-        Raise EDelphiVersionException.Create('Retrieving conversation information failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
-
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := convinfo.hwndPartner;
-    Until (conv = 0);
-  Finally
-    If Not DdeDisconnectList(convlist) Then
-      Raise EDelphiVersionException.Create('Releasing the list of Delphi DDE servers failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
-  End;
-End;
-
-Procedure TDelphiDDEManager.OpenFile(Const inFileName: String; Const inDDEServerHWND: HWND; Const inTimeOutInMs: Integer = 5000);
-Var
-  atomservice, atomtopic: Word;
-  commandhandle: THandle;
-  cmd: String;
-  msg: TMsg;
-  msghwnd: HWND;
-  pLo, pHi: PUINT_PTR;
-Begin
-  msghwnd := AllocateHWnd(nil);
-  Try
-    atomservice := GlobalAddAtom(PChar(_service));
-    Try
-      atomtopic := GlobalAddAtom(PChar(_topic));
-      Try
-        SendMessage(inDDEServerHWND, WM_DDE_INITIATE, msghwnd, Makelong(atomservice, atomtopic));
-      Finally
-        GlobalDeleteAtom(atomtopic);
-      End;
-    Finally
-      GlobalDeleteAtom(atomservice);
-    End;
-
-    // Make sure we deplete all messages arrived in response to WM_DDE_INITIATE in the message queue
-    // before the next part
-    While PeekMessage(msg, msghwnd, 0, 0, PM_REMOVE) Do
-      Sleep(0); // Please, do not optimize me out :)
-
-    cmd := '[open("' + inFileName + '")]';
-    commandhandle := GlobalLockString(cmd, GMEM_DDESHARE);
-
-    PostMessage(inDDEServerHWND, WM_DDE_EXECUTE, msghwnd, commandhandle);
-    SetTimer(msghwnd, 1, inTimeOutInMs, nil);
-
-    Repeat
-      If PeekMessage(msg, msghwnd, 0, 0, PM_REMOVE) Then
-        Case msg.message Of
-          WM_TIMER:
-          Begin
-            GlobalUnlock(commandhandle);
-            GlobalFree(commandhandle);
-
-            Raise EDelphiVersionException.Create('Opening the file failed, DDE server did not acknowledge the request!');
-          End;
-          WM_DDE_ACK:
-          Begin
-            If UnpackDDElParam(msg.message, msg.lParam, @pLo, @pHi) Then
-            Begin
-              GlobalUnlock(pHi^);
-              GlobalFree(pHi^);
-              FreeDDElParam(msg.message, msg.lParam);
-
-              PostMessage(msg.wParam, WM_DDE_TERMINATE, msghwnd, 0);
-              PostMessage(msghwnd, WM_QUIT, 0, 0);
-
-              Exit;
-            End;
-          End;
-          Else
-          Begin
-            TranslateMessage(msg);
-            DispatchMessage(msg);
-          End;
-        End;
-
-      Sleep(100);
-    Until False;
-  Finally
-   DeallocateHWnd(msghwnd);
-  End;
-End;
-
-Function TDelphiDDEManager.GlobalLockString(inString: String; inFlags: UINT): THandle;
-Var
-  DataPtr: Pointer;
-Begin
-  Result := GlobalAlloc(GMEM_ZEROINIT Or inFlags, (Length(inString) * SizeOf(Char)) + 1);
-  Try
-    DataPtr := GlobalLock(Result);
-    Move(PChar(inString)^, DataPtr^, Length(inString) * SizeOf(Char));
-  Except
-    GlobalFree(Result);
-    Raise;
-  End;
-End;
 
 //
 // TDelphiInstance
 //
 
-Constructor TDelphiInstance.Create(inOwner: TComponent; Const inPID: Cardinal; Const inDDEHWND: HWND);
+Constructor TDelphiInstance.Create(inOwner: TComponent; Const inPID: Cardinal);
 Begin
   inherited Create(inOwner);
 
-  _ddehwnd := inDDEHWND;
   _idehwnd := 0;
   _idecaption := '';
   _pid := inPID;
@@ -329,16 +155,13 @@ Begin
   FindIdeWindow;
 End;
 
-Procedure TDelphiInstance.OpenFile(Const inFileName: String);
+Procedure TDelphiInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
   ddemgr: TDelphiDDEManager;
 Begin
-  If Not IsWindow(_ddehwnd) Then
-    Raise EDelphiVersionException.Create('DDE server gone away!');
-
-  ddemgr := TDelphiDDEManager.Create('bds', 'system');
+  ddemgr := TDelphiDDEManager.Create;
   Try
-    ddemgr.OpenFile(inFileName, _ddehwnd);
+    ddemgr.OpenFile(inFileName, _pid, inTimeOutInMs);
   Finally
     FreeAndNil(ddemgr);
   End;
@@ -508,20 +331,16 @@ End;
 
 Procedure TBorlandDelphiVersion.RefreshInstances;
 Var
-  a: Cardinal;
-  h: HWND;
+  pid: Cardinal;
   ddemgr: TDelphiDDEManager;
 Begin
   _instances.Clear;
 
-  ddemgr := TDelphiDDEManager.Create('bds', 'system');
+  ddemgr := TDelphiDDEManager.Create;
   Try
-    For h In ddemgr.DDEInstances Do
-    Begin
-      GetWindowThreadProcessId(h, a);
-      If ProcessName(a).ToLower = _bdspath.ToLower Then
-        _instances.Add(TDelphiInstance.Create(Self, a, h));
-    End;
+    For pid In ddemgr.DDEServerPIDs Do
+      If ProcessName(pid).ToLower = _bdspath.ToLower Then
+        _instances.Add(TDelphiInstance.Create(Self, pid));
   Finally
     FreeAndNil(ddemgr);
   End;

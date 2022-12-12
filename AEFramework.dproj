@@ -135,6 +135,7 @@
         <DCCReference Include="AE.Comp.Updater.UpdateFile.pas"/>
         <DCCReference Include="AE.Application.Setting.pas"/>
         <DCCReference Include="AE.DelphiVersions.pas"/>
+        <DCCReference Include="AE.DDEManager.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
