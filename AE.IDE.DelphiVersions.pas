@@ -2,8 +2,7 @@
 
 Interface
 
-Uses System.Generics.Collections, WinApi.Windows, System.SysUtils, System.Classes, WinApi.Messages, AE.DDEManager, AE.IDE.Versions,
-     System.Win.Registry;
+Uses System.SysUtils,  AE.DDEManager, AE.IDE.Versions, System.Win.Registry;
 
 Type
   TDelphiDDEManager = Class(TAEDDEManager)
@@ -23,7 +22,6 @@ Type
   strict protected
     Procedure InternalRefreshInstances; Override;
     Function InternalGetName: String; Override;
-    Function InternalNewIDEInstance: Cardinal; Override;
   public
     Class Function BDSRoot: String; Virtual;
   End;
@@ -62,15 +60,7 @@ Type
 
 Implementation
 
-Uses WinApi.PsAPI;
-
-Type
-  TDelphiIDEInfo = Record
-    outHWND: HWND;
-    outWindowCaption: String;
-    PID: Cardinal;
-  End;
-  PDelphiIDEInfo = ^TDelphiIDEInfo;
+Uses System.Classes, WinApi.Windows;
 
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
@@ -85,13 +75,13 @@ Begin
   GetWindowText(inHWND, title, 255);
   GetClassName(inHWND, classname, 255);
 
-  Result := (ppid <> PDelphiIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or (Not IsWindowEnabled(inHWND)) Or Not
-    (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
+  Result := (ppid <> PIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or Not IsWindowEnabled(inHWND) Or
+    Not (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
 
   If Not Result Then
   Begin
-    PDelphiIDEInfo(inParam)^.outHWND := inHWND;
-    PDelphiIDEInfo(inParam)^.outWindowCaption := title;
+    PIDEInfo(inParam)^.outHWND := inHWND;
+    PIDEInfo(inParam)^.outWindowCaption := title;
   End;
 End;
 
@@ -116,7 +106,7 @@ End;
 
 Procedure TDelphiInstance.InternalFindIDEWindow;
 Var
-  info: PDelphiIDEInfo;
+  info: PIDEInfo;
 Begin
   inherited;
 
@@ -156,33 +146,13 @@ Begin
   Result := 'SOFTWARE\Borland\Delphi';
 End;
 
-Function TBorlandDelphiVersion.InternalNewIDEInstance: Cardinal;
-Var
-  startinfo: TStartupInfo;
-  procinfo: TProcessInformation;
-Begin
-  FillChar(startinfo, SizeOf(TStartupInfo), #0);
-  startinfo.cb := SizeOf(TStartupInfo);
-  FillChar(procinfo, SizeOf(TProcessInformation), #0);
-
-  If Not CreateProcess(PChar(Self.ExecutablePath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
-    RaiseLastOSError;
-
-  Try
-    WaitForInputIdle(procinfo.hProcess, INFINITE);
-
-    Result := procinfo.dwProcessId;
-  Finally
-    CloseHandle(procinfo.hThread);
-    CloseHandle(procinfo.hProcess);
-  End;
-End;
-
 Procedure TBorlandDelphiVersion.InternalRefreshInstances;
 Var
   pid: Cardinal;
   ddemgr: TDelphiDDEManager;
 Begin
+  inherited;
+
   ddemgr := TDelphiDDEManager.Create;
   Try
     For pid In ddemgr.DDEServerPIDs Do

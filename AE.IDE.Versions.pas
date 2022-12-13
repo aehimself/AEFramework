@@ -73,6 +73,13 @@ Type
 
   EAEIDEVersionException = Class(Exception);
 
+  TIDEInfo = Record
+    outHWND: HWND;
+    outWindowCaption: String;
+    PID: Cardinal;
+  End;
+  PIDEInfo = ^TIDEInfo;
+
 Implementation
 
 Uses WinApi.Messages, WinApi.PsAPI;
@@ -234,10 +241,25 @@ Begin
 End;
 
 Function TIDEVersion.InternalNewIDEInstance: Cardinal;
+Var
+  startinfo: TStartupInfo;
+  procinfo: TProcessInformation;
 Begin
-  // Dummy
+  FillChar(startinfo, SizeOf(TStartupInfo), #0);
+  startinfo.cb := SizeOf(TStartupInfo);
+  FillChar(procinfo, SizeOf(TProcessInformation), #0);
 
-  Result := 0;
+  If Not CreateProcess(PChar(Self.ExecutablePath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
+    RaiseLastOSError;
+
+  Try
+    WaitForInputIdle(procinfo.hProcess, INFINITE);
+
+    Result := procinfo.dwProcessId;
+  Finally
+    CloseHandle(procinfo.hThread);
+    CloseHandle(procinfo.hProcess);
+  End;
 End;
 
 Function TIDEVersion.IsRunning: Boolean;
