@@ -78,19 +78,19 @@ Begin
   Try
     If Terminated Then
       Exit;
-    Try
-      Repeat
+    Repeat
+      Try
         If Assigned(_workcycle) Then
           _workcycle;
         Sleep(5);
-      Until Terminated;
-    Except
-      On E: Exception Do
-        If Assigned(_threaderror) Then
-          _threaderror(E)
-        Else
-          Raise;
-    End;
+      Except
+        On E: Exception Do
+          If Assigned(_threaderror) Then
+            _threaderror(E)
+          Else
+            Raise;
+      End;
+    Until Terminated;
   Finally
     If Assigned(_afterwork) Then
       _afterwork;
