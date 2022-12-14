@@ -314,6 +314,9 @@ End;
 
 Procedure TAEVSVersions.SetVSWhere(const inVSWhereLocation: String);
 Begin
+  If _vswhere <> inVSWhereLocation Then
+    Exit;
+
   _vswhere := inVSWhereLocation;
 
   Self.RefreshInstalledVersions;
