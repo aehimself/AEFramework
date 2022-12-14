@@ -31,11 +31,13 @@ Type
     _vswhere: String;
     Procedure AddFromRegistry;
     Procedure AddFromVSWhere;
+    Procedure SetVSWhere(Const inVSWhereLocation: String);
     Function GetDOSOutput(Const inCommandLine: String): String;
   strict protected
     Procedure InternalRefreshInstalledVersions; Override;
   public
-    Constructor Create(inOwner: TComponent; Const inVSWhereExeLocation: String); ReIntroduce;
+    Constructor Create(inOwner: TComponent); Override;
+    Property VSWhereExeLocation: String Read _vswhere Write SetVSWhere;
   End;
 
 Implementation
@@ -228,11 +230,11 @@ Begin
   End;
 End;
 
-Constructor TAEVSVersions.Create(inOwner: TComponent; Const inVSWhereExeLocation: String);
+Constructor TAEVSVersions.Create(inOwner: TComponent);
 Begin
-  inherited Create(inOwner);
+  inherited;
 
-  _vswhere := inVSWhereExeLocation;
+  _vswhere := '';
 End;
 
 Function TAEVSVersions.GetDOSOutput(Const inCommandLine: String): String;
@@ -308,6 +310,13 @@ Begin
     Self.AddFromRegistry
   Else
     Self.AddFromVSWhere;
+End;
+
+Procedure TAEVSVersions.SetVSWhere(const inVSWhereLocation: String);
+Begin
+  _vswhere := inVSWhereLocation;
+
+  Self.RefreshInstalledVersions;
 End;
 
 End.

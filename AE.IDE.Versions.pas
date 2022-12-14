@@ -247,12 +247,16 @@ Function TAEIDEVersion.InternalNewIDEInstance: Cardinal;
 Var
   startinfo: TStartupInfo;
   procinfo: TProcessInformation;
+  cmd: String;
 Begin
   FillChar(startinfo, SizeOf(TStartupInfo), #0);
   startinfo.cb := SizeOf(TStartupInfo);
   FillChar(procinfo, SizeOf(TProcessInformation), #0);
 
-  If Not CreateProcess(PChar(Self.ExecutablePath), PChar(_newinstanceparams), nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
+  If _newinstanceparams.IsEmpty Then cmd := Self.ExecutablePath
+    Else cmd := Self.ExecutablePath + ' ' + _newinstanceparams;
+
+  If Not CreateProcess(nil, PChar(cmd), nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
     RaiseLastOSError;
 
   Try
