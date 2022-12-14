@@ -5,7 +5,7 @@ Interface
 Uses System.Classes, WinApi.Windows, System.SysUtils, System.Generics.Collections;
 
 Type
-  TIDEInstance = Class(TComponent)
+  TAEIDEInstance = Class(TComponent)
   strict private
     _idehwnd: HWND;
     _idecaption: String;
@@ -25,15 +25,16 @@ Type
     Property PID: Cardinal Read _pid;
   End;
 
-  TIDEVersion = Class(TComponent)
+  TAEIDEVersion = Class(TComponent)
   strict private
     _executablepath: String;
-    _instances: TObjectList<TIDEInstance>;
+    _instances: TObjectList<TAEIDEInstance>;
     _name: String;
+    _newinstanceparams: String;
     _versionnumber: Integer;
-    Function GetInstances: TArray<TIDEInstance>;
+    Function GetInstances: TArray<TAEIDEInstance>;
   strict protected
-    Procedure AddInstance(Const inInstance: TIDEInstance);
+    Procedure AddInstance(Const inInstance: TAEIDEInstance);
     Procedure InternalRefreshInstances; Virtual;
     Function InternalGetName: String; Virtual;
     Function InternalNewIDEInstance: Cardinal; Virtual;
@@ -43,42 +44,43 @@ Type
     Destructor Destroy; Override;
     Procedure AfterConstruction; Override;
     Procedure RefreshInstances;
-    Function InstanceByPID(Const inPID: Cardinal): TIDEInstance;
+    Function InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
     Function IsRunning: Boolean;
-    Function NewIDEInstance: TIDEInstance;
+    Function NewIDEInstance: TAEIDEInstance;
     Property ExecutablePath: String Read _executablepath;
-    Property Instances: TArray<TIDEInstance> Read GetInstances;
+    Property Instances: TArray<TAEIDEInstance> Read GetInstances;
     Property Name: String Read _name;
+    Property NewInstanceParams: String Read _newinstanceparams Write _newinstanceparams;
     Property VersionNumber: Integer Read _versionnumber;
   End;
 
-  TIDEVersions = Class(TComponent)
+  TAEIDEVersions = Class(TComponent)
   strict private
-    _latestversion: TIDEVersion;
-    _versions: TObjectList<TIDEVersion>;
-    Function GetInstalledVersions: TArray<TIDEVersion>;
+    _latestversion: TAEIDEVersion;
+    _versions: TObjectList<TAEIDEVersion>;
+    Function GetInstalledVersions: TArray<TAEIDEVersion>;
   strict protected
-    Procedure AddVersion(Const inVersion: TIDEVersion);
+    Procedure AddVersion(Const inVersion: TAEIDEVersion);
     Procedure InternalRefreshInstalledVersions; Virtual;
   public
     Constructor Create(inOwner: TComponent); Override;
     Destructor Destroy; Override;
     Procedure AfterConstruction; Override;
     Procedure RefreshInstalledVersions;
-    Function VersionByName(Const inName: String): TIDEVersion;
-    Function VersionByVersionNumber(Const inVersionNumber: Integer): TIDEVersion;
-    Property LatestVersion: TIDEVersion Read _latestversion;
-    Property InstalledVersions: TArray<TIDEVersion> Read GetInstalledVersions;
+    Function VersionByName(Const inName: String): TAEIDEVersion;
+    Function VersionByVersionNumber(Const inVersionNumber: Integer): TAEIDEVersion;
+    Property LatestVersion: TAEIDEVersion Read _latestversion;
+    Property InstalledVersions: TArray<TAEIDEVersion> Read GetInstalledVersions;
   End;
 
   EAEIDEVersionException = Class(Exception);
 
-  TIDEInfo = Record
+  TAEIDEInfo = Record
     outHWND: HWND;
     outWindowCaption: String;
     PID: Cardinal;
   End;
-  PIDEInfo = ^TIDEInfo;
+  PAEIDEInfo = ^TAEIDEInfo;
 
 Implementation
 
@@ -88,7 +90,7 @@ Uses WinApi.Messages, WinApi.PsAPI;
 // TDelphiInstance
 //
 
-Constructor TIDEInstance.Create(inOwner: TComponent; Const inPID: Cardinal);
+Constructor TAEIDEInstance.Create(inOwner: TComponent; Const inPID: Cardinal);
 Begin
   inherited Create(inOwner);
 
@@ -99,7 +101,7 @@ Begin
   FindIdeWindow;
 End;
 
-Function TIDEInstance.FindIdeWindow(const inForceSearch: Boolean): Boolean;
+Function TAEIDEInstance.FindIdeWindow(const inForceSearch: Boolean): Boolean;
 Begin
   If Not inForceSearch And (_idehwnd <> 0) And IsWindow(_idehwnd) Then
   Begin
@@ -117,12 +119,12 @@ Begin
   Result := _idehwnd <> 0;
 End;
 
-Procedure TIDEInstance.InternalFindIDEWindow;
+Procedure TAEIDEInstance.InternalFindIDEWindow;
 Begin
   // Dummy
 End;
 
-Function TIDEInstance.InternalIsIDEBusy: Boolean;
+Function TAEIDEInstance.InternalIsIDEBusy: Boolean;
 Var
   res: NativeInt;
 Begin
@@ -145,22 +147,22 @@ Begin
     RaiseLastOSError(res);
 End;
 
-Function TIDEInstance.IsIDEBusy: Boolean;
+Function TAEIDEInstance.IsIDEBusy: Boolean;
 Begin
   Result := Self.InternalIsIDEBusy;
 End;
 
-Procedure TIDEInstance.SetIDECaption(Const inIDECaption: String);
+Procedure TAEIDEInstance.SetIDECaption(Const inIDECaption: String);
 Begin
   _idecaption := inIDECaption;
 End;
 
-Procedure TIDEInstance.SetIDEHWND(Const inIDEHWND: HWND);
+Procedure TAEIDEInstance.SetIDEHWND(Const inIDEHWND: HWND);
 Begin
   _idehwnd := inIDEHWND;
 End;
 
-Procedure TIDEInstance.UpdateCaption;
+Procedure TAEIDEInstance.UpdateCaption;
 Var
   title: Array[0..255] Of Char;
 Begin
@@ -176,12 +178,12 @@ End;
 // TIDEVersion
 //
 
-Procedure TIDEVersion.AddInstance(Const inInstance: TIDEInstance);
+Procedure TAEIDEVersion.AddInstance(Const inInstance: TAEIDEInstance);
 Begin
   _instances.Add(inInstance);
 End;
 
-Procedure TIDEVersion.AfterConstruction;
+Procedure TAEIDEVersion.AfterConstruction;
 Begin
   inherited;
 
@@ -192,31 +194,32 @@ Begin
   Self.RefreshInstances;
 End;
 
-Constructor TIDEVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
+Constructor TAEIDEVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
 Begin
   inherited Create(inOwner);
 
   _executablepath := inExecutablePath;
-  _instances := TObjectList<TIDEInstance>.Create(True);
+  _instances := TObjectList<TAEIDEInstance>.Create(True);
   _name := '';
+  _newinstanceparams := '';
   _versionnumber := inVersionNumber;
 End;
 
-Destructor TIDEVersion.Destroy;
+Destructor TAEIDEVersion.Destroy;
 Begin
   FreeAndNil(_instances);
 
   inherited;
 End;
 
-Function TIDEVersion.GetInstances: TArray<TIDEInstance>;
+Function TAEIDEVersion.GetInstances: TArray<TAEIDEInstance>;
 Begin
   Result := _instances.ToArray;
 End;
 
-Function TIDEVersion.InstanceByPID(Const inPID: Cardinal): TIDEInstance;
+Function TAEIDEVersion.InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
 Var
-  inst: TIDEInstance;
+  inst: TAEIDEInstance;
 Begin
   Result := nil;
 
@@ -228,19 +231,19 @@ Begin
     End;
 End;
 
-Procedure TIDEVersion.InternalRefreshInstances;
+Procedure TAEIDEVersion.InternalRefreshInstances;
 Begin
   // Dummy
 End;
 
-Function TIDEVersion.InternalGetName: String;
+Function TAEIDEVersion.InternalGetName: String;
 Begin
   // Dummy
 
   Result := '';
 End;
 
-Function TIDEVersion.InternalNewIDEInstance: Cardinal;
+Function TAEIDEVersion.InternalNewIDEInstance: Cardinal;
 Var
   startinfo: TStartupInfo;
   procinfo: TProcessInformation;
@@ -249,7 +252,7 @@ Begin
   startinfo.cb := SizeOf(TStartupInfo);
   FillChar(procinfo, SizeOf(TProcessInformation), #0);
 
-  If Not CreateProcess(PChar(Self.ExecutablePath), nil, nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
+  If Not CreateProcess(PChar(Self.ExecutablePath), PChar(_newinstanceparams), nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
     RaiseLastOSError;
 
   Try
@@ -262,12 +265,12 @@ Begin
   End;
 End;
 
-Function TIDEVersion.IsRunning: Boolean;
+Function TAEIDEVersion.IsRunning: Boolean;
 Begin
   Result := _instances.Count > 0;
 End;
 
-Function TIDEVersion.NewIDEInstance: TIDEInstance;
+Function TAEIDEVersion.NewIDEInstance: TAEIDEInstance;
 Var
   newpid: Cardinal;
 Begin
@@ -286,7 +289,7 @@ Begin
   Until Assigned(Result) And Result.FindIdeWindow And Not Result.IsIDEBusy;
 End;
 
-Function TIDEVersion.ProcessName(Const inPID: Cardinal): String;
+Function TAEIDEVersion.ProcessName(Const inPID: Cardinal): String;
 Var
   processhandle: THandle;
 Begin
@@ -306,7 +309,7 @@ Begin
   End;
 End;
 
-Procedure TIDEVersion.RefreshInstances;
+Procedure TAEIDEVersion.RefreshInstances;
 Begin
   _instances.Clear;
 
@@ -317,7 +320,7 @@ End;
 // TIDEVersions
 //
 
-Procedure TIDEVersions.AddVersion(Const inVersion: TIDEVersion);
+Procedure TAEIDEVersions.AddVersion(Const inVersion: TAEIDEVersion);
 Begin
   _versions.Add(inVersion);
 
@@ -325,46 +328,46 @@ Begin
     _latestversion := inVersion;
 End;
 
-Procedure TIDEVersions.AfterConstruction;
+Procedure TAEIDEVersions.AfterConstruction;
 Begin
   inherited;
 
   Self.RefreshInstalledVersions;
 End;
 
-Constructor TIDEVersions.Create(inOwner: TComponent);
+Constructor TAEIDEVersions.Create(inOwner: TComponent);
 Begin
   inherited;
 
   _latestversion := nil;
-  _versions := TObjectList<TIDEVersion>.Create(True);
+  _versions := TObjectList<TAEIDEVersion>.Create(True);
 End;
 
-Destructor TIDEVersions.Destroy;
+Destructor TAEIDEVersions.Destroy;
 Begin
   FreeAndNil(_versions);
 
   inherited;
 End;
 
-Function TIDEVersions.GetInstalledVersions: TArray<TIDEVersion>;
+Function TAEIDEVersions.GetInstalledVersions: TArray<TAEIDEVersion>;
 Begin
   Result := _versions.ToArray;
 End;
 
-Procedure TIDEVersions.InternalRefreshInstalledVersions;
+Procedure TAEIDEVersions.InternalRefreshInstalledVersions;
 Begin
   // Dummy
 End;
 
-Procedure TIDEVersions.RefreshInstalledVersions;
+Procedure TAEIDEVersions.RefreshInstalledVersions;
 begin
   _versions.Clear;
 
   Self.InternalRefreshInstalledVersions;
 End;
 
-Function TIDEVersions.VersionByName(Const inName: String): TIDEVersion;
+Function TAEIDEVersions.VersionByName(Const inName: String): TAEIDEVersion;
 Begin
   For Result In _versions Do
     If Result.Name = inName Then
@@ -373,7 +376,7 @@ Begin
   Result := nil;
 End;
 
-Function TIDEVersions.VersionByVersionNumber(Const inVersionNumber: Integer): TIDEVersion;
+Function TAEIDEVersions.VersionByVersionNumber(Const inVersionNumber: Integer): TAEIDEVersion;
 Begin
   For Result In _versions Do
     If Result.VersionNumber = inVersionNumber Then

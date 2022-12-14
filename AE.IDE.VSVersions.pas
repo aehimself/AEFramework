@@ -2,24 +2,31 @@
 
 Interface
 
-Uses AE.IDE.Versions, System.Classes;
+Uses AE.IDE.Versions, System.Classes, AE.DDEManager;
 
 Type
-  TVSInstance = Class(TIDEInstance)
-  strict protected
-    Procedure InternalFindIDEWindow; Override;
+  TAEVSDDEManager = Class(TAEDDEManager)
+  public
+    Constructor Create(Const inVersion: Integer);
   End;
 
-  TVSVersion = Class(TIDEVersion)
+  TAEVSInstance = Class(TAEIDEInstance)
   strict private
-    Function GetUserAndDomainFromPID(inPID: Cardinal; Var outUser, outDomain: String): Boolean;
-    Function ProcessBelongsToUser(Const inPID: Cardinal; Const inUser: String): Boolean;
+    _versionnumber: Integer;
+  strict protected
+    Procedure InternalFindIDEWindow; Override;
+  public
+    Constructor Create(inOwner: TComponent; Const inPID: Cardinal; Const inVersionNumber: Integer); ReIntroduce;
+    Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
+  End;
+
+  TAEVSVersion = Class(TAEIDEVersion)
   strict protected
     Function InternalGetName: String; Override;
     Procedure InternalRefreshInstances; Override;
   End;
 
-  TVSVersions = Class(TIDEVersions)
+  TAEVSVersions = Class(TAEIDEVersions)
   strict private
     _vswhere: String;
     Procedure AddFromRegistry;
@@ -33,7 +40,7 @@ Type
 
 Implementation
 
-Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON, WinApi.TlHelp32;
+Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON;
 
 Type
   PTOKEN_USER = ^TOKEN_USER;
@@ -51,23 +58,39 @@ Begin
   GetWindowText(inHWND, title, 255);
   GetClassName(inHWND, classname, 255);
 
-  Result := (ppid <> PIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or Not IsWindowEnabled(inHWND) Or
+  Result := (ppid <> PAEIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or Not IsWindowEnabled(inHWND) Or
     Not String(title).Contains('Microsoft Visual Studio') Or Not String(classname).StartsWith('HwndWrapper[DefaultDomain;;');
 
   If Not Result Then
   Begin
-    PIDEInfo(inParam)^.outHWND := inHWND;
-    PIDEInfo(inParam)^.outWindowCaption := title;
+    PAEIDEInfo(inParam)^.outHWND := inHWND;
+    PAEIDEInfo(inParam)^.outWindowCaption := title;
   End;
+End;
+
+//
+// TVSDDEManager
+//
+
+Constructor TAEVSDDEManager.Create(const inVersion: Integer);
+Begin
+ inherited Create('VisualStudio.' + inVersion.ToString + '.0', 'system');
 End;
 
 //
 // TVSInstance
 //
 
-Procedure TVSInstance.InternalFindIDEWindow;
+Constructor TAEVSInstance.Create(inOwner: TComponent; Const inPID: Cardinal; Const inVersionNumber: Integer);
+Begin
+  inherited Create(inOwner, inPID);;
+
+  _versionnumber := inVersionNumber;
+End;
+
+Procedure TAEVSInstance.InternalFindIDEWindow;
 Var
-  info: PIDEInfo;
+  info: PAEIDEInfo;
 Begin
   inherited;
 
@@ -86,17 +109,25 @@ Begin
   End;
 End;
 
+Procedure TAEVSInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
+Var
+  ddemgr: TAEVSDDEManager;
+Begin
+  ddemgr := TAEVSDDEManager.Create(_versionnumber);
+  Try
+    ddemgr.ExecuteCommand('[Open("' + inFileName + '")]', Self.PID, inTimeOutInMs);
+  Finally
+    FreeAndNil(ddemgr);
+  End;
+End;
+
 //
 // TVSVersion
 //
 
-Function TVSVersion.InternalGetName: String;
-Var
-  ver: Double;
+Function TAEVSVersion.InternalGetName: String;
 Begin
-  ver := Self.VersionNumber / 100;
-
-  Case Round(ver) Of
+  Case Round(Self.VersionNumber) Of
     8:
       Result := 'Microsoft Visual Studio 2005';
     9:
@@ -116,112 +147,22 @@ Begin
     17:
       Result := 'Microsoft Visual Studio 2022';
     Else
-      Result := 'Microsoft Visual Studio v' + FormatFloat('0.0', ver);
+      Result := 'Microsoft Visual Studio v' + Self.VersionNumber.ToString;
   End;
 End;
 
-Function TVSVersion.GetUserAndDomainFromPID(inPID: Cardinal; Var outUser, outDomain: String): Boolean;
+Procedure TAEVSVersion.InternalRefreshInstances;
 Var
-  phandle, tokenhandle: THandle;
-  len: Cardinal;
-  usertoken: PTOKEN_USER;
-  snu: SID_NAME_USE;
-  userlen, domainlen: DWORD;
+  ddemgr: TAEVSDDEManager;
+  pid: Cardinal;
 Begin
-  Result := False;
-
-  phandle := OpenProcess(PROCESS_QUERY_INFORMATION, False, inPID);
-
-  If phandle = 0 Then
-    Exit;
-
-//  EnableProcessPrivilege(ProcessHandle, 'SeSecurityPrivilege', True);
+  ddemgr := TAEVSDDEManager.Create(Self.VersionNumber);
   Try
-    If Not OpenProcessToken(phandle, TOKEN_QUERY, tokenhandle) Then
-      Exit;
-
-    Try
-      Result := GetTokenInformation(tokenhandle, TokenUser, nil, 0, len);
-      usertoken  := nil;
-
-      While Not Result And (GetLastError = ERROR_INSUFFICIENT_BUFFER) Do
-      Begin
-        ReallocMem(usertoken, len);
-        Result := GetTokenInformation(tokenhandle, TokenUser, usertoken, len, len);
-      End;
-    Finally
-      CloseHandle(tokenhandle);
-    End;
-
-    If Not Result Then
-      Exit;
-
-    Try
-      userlen := 0;
-      domainlen := 0;
-      LookupAccountSid(nil, usertoken.User.Sid, nil, userlen, nil, domainlen, snu);
-
-      If (userlen = 0) Or (domainlen = 0) Then
-        Exit;
-
-      SetLength(outUser, userlen);
-      SetLength(outDomain, domainlen);
-
-      If Not LookupAccountSid(nil, usertoken.User.Sid, PChar(outUser), userlen, PChar(outDomain), domainlen, snu) Then
-        Exit;
-
-      outUser := StrPas(PChar(outUser));
-      outDomain := StrPas(PChar(outDomain));
-
-      Result := True;
-    Finally
-     FreeMem(usertoken);
-    End;
+    For pid In ddemgr.DDEServerPIDs Do
+      If ProcessName(pid).ToLower = Self.ExecutablePath.ToLower Then
+        Self.AddInstance(TAEVSInstance.Create(Self, pid, Self.VersionNumber));
   Finally
-    CloseHandle(phandle);
-  End;
-End;
-
-Function TVSVersion.ProcessBelongsToUser(Const inPID: Cardinal; Const inUser: String): Boolean;
-Var
-  domain, user: String;
-Begin
-  Result := GetUserAndDomainFromPID(inPid, user, domain) And (user.ToLower = inUser.ToLower);
-End;
-
-Procedure TVSVersion.InternalRefreshInstances;
-Var
-  len: DWord;
-  user, exe, exename: String;
-  success: Boolean;
-  psnapshot: THandle;
-  pe: TProcessEntry32;
-Begin
-  exe := Self.ExecutablePath.ToLower;
-  exename := ExtractFileName(exe);
-
-  len := 256;
-  SetLength(user, len);
-  If Not GetUserName(PChar(user), len) Then
-    RaiseLastOSError;
-
-  SetLength(user, len - 1);
-  user := user.ToLower;
-
-  psnapshot := CreateToolhelp32Snapshot(TH32CS_SNAPALL, 0);
-  Try
-    pe.dwSize := SizeOf(pe);
-    success := Process32First(psnapshot, pe);
-
-    While success Do
-    Begin
-      If (String(pe.szExeFile).ToLower = exename) And (ProcessName(pe.th32ProcessID).ToLower = exe) And ProcessBelongsToUser(pe.th32ProcessID, user) Then
-        Self.AddInstance(TVSInstance.Create(Self, pe.th32ProcessID));
-
-      success := Process32Next(psnapshot, pe);
-    End;
-  Finally
-    CloseHandle(psnapshot);
+    FreeAndNil(ddemgr);
   End;
 End;
 
@@ -229,11 +170,11 @@ End;
 // TVSVersions
 //
 
-Procedure TVSVersions.AddFromRegistry;
+Procedure TAEVSVersions.AddFromRegistry;
 Var
   reg: TRegistry;
   sl: TStringList;
-  s: String;
+  s, loc: String;
 Begin
   sl := TStringList.Create;
   Try
@@ -248,7 +189,11 @@ Begin
         reg.GetValueNames(sl);
 
         For s In sl Do
-          Self.AddVersion(TVSVersion.Create(Self, reg.ReadString(s), Round(Double.Parse(s.Replace('.', FormatSettings.DecimalSeparator)) * 100)));
+        Begin
+          loc := IncludeTrailingPathDelimiter(reg.ReadString(s)) + 'Common7\IDE\devenv.exe';
+          If FileExists(loc) Then
+            Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(s.Substring(0, s.IndexOf('.')))));
+        End;
       Finally
         reg.CloseKey;
       End;
@@ -260,7 +205,7 @@ Begin
   End;
 End;
 
-Procedure TVSVersions.AddFromVSWhere;
+Procedure TAEVSVersions.AddFromVSWhere;
 Var
  json: TJSONArray;
  ver, loc: String;
@@ -276,24 +221,21 @@ Begin
       ver := jo.GetValue('installationVersion').Value;
       loc := jo.GetValue('productPath').Value;
 
-      While ver.CountChar('.') > 1 Do
-        ver := ver.Substring(0, ver.LastIndexOf('.'));
-
-      Self.AddVersion(TVSVersion.Create(Self, loc, Round(Double.Parse(ver.Replace('.', FormatSettings.DecimalSeparator)) * 100)));
+      Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(ver.Substring(0, ver.IndexOf('.')))));
     End;
   Finally
     FreeAndNil(json);
   End;
 End;
 
-Constructor TVSVersions.Create(inOwner: TComponent; Const inVSWhereExeLocation: String);
+Constructor TAEVSVersions.Create(inOwner: TComponent; Const inVSWhereExeLocation: String);
 Begin
   inherited Create(inOwner);
 
   _vswhere := inVSWhereExeLocation;
 End;
 
-Function TVSVersions.GetDOSOutput(Const inCommandLine: String): String;
+Function TAEVSVersions.GetDOSOutput(Const inCommandLine: String): String;
 Const
   LOGON_WITH_PROFILE = $00000001;
 Var
@@ -358,7 +300,7 @@ Begin
   End;
 End;
 
-Procedure TVSVersions.InternalRefreshInstalledVersions;
+Procedure TAEVSVersions.InternalRefreshInstalledVersions;
 Begin
   inherited;
 

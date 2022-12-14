@@ -5,20 +5,20 @@ Interface
 Uses System.SysUtils,  AE.DDEManager, AE.IDE.Versions, System.Win.Registry;
 
 Type
-  TDelphiDDEManager = Class(TAEDDEManager)
+  TAEDelphiDDEManager = Class(TAEDDEManager)
   public
     Constructor Create; ReIntroduce;
     Procedure OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
   End;
 
-  TDelphiInstance = Class(TIDEInstance)
+  TAEDelphiInstance = Class(TAEIDEInstance)
   strict protected
     Procedure InternalFindIDEWindow; Override;
   public
     Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
   End;
 
-  TBorlandDelphiVersion = Class(TIDEVersion)
+  TAEBorlandDelphiVersion = Class(TAEIDEVersion)
   strict protected
     Procedure InternalRefreshInstances; Override;
     Function InternalGetName: String; Override;
@@ -26,37 +26,37 @@ Type
     Class Function BDSRoot: String; Virtual;
   End;
 
-  TDelphiVersionClass = Class Of TBorlandDelphiVersion;
+  TAEDelphiVersionClass = Class Of TAEBorlandDelphiVersion;
 
-  TBorland2DelphiVersion = Class(TBorlandDelphiVersion)
+  TAEBorland2DelphiVersion = Class(TAEBorlandDelphiVersion)
   strict protected
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
   End;
 
-  TCodegearDelphiVersion = Class(TBorlandDelphiVersion)
+  TAECodegearDelphiVersion = Class(TAEBorlandDelphiVersion)
   strict protected
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
   End;
 
-  TEmbarcaderoDelphiVersion = Class(TBorlandDelphiVersion)
+  TAEEmbarcaderoDelphiVersion = Class(TAEBorlandDelphiVersion)
   strict protected
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
   End;
 
-  TDelphiVersions = Class(TIDEVersions)
+  TAEDelphiVersions = Class(TAEIDEVersions)
   strict private
-    Procedure DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TDelphiVersionClass);
+    Procedure DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TAEDelphiVersionClass);
   strict protected
     Procedure InternalRefreshInstalledVersions; Override;
   End;
 
-  EDelphiVersionException = Class(Exception);
+  EAEDelphiVersionException = Class(Exception);
 
 Implementation
 
@@ -75,13 +75,13 @@ Begin
   GetWindowText(inHWND, title, 255);
   GetClassName(inHWND, classname, 255);
 
-  Result := (ppid <> PIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or Not IsWindowEnabled(inHWND) Or
+  Result := (ppid <> PAEIDEInfo(inParam)^.PID) Or Not IsWindowVisible(inHWND) Or Not IsWindowEnabled(inHWND) Or
     Not (String(title).Contains('RAD Studio') Or String(title).Contains('Delphi')) Or (String(classname) <> 'TAppBuilder');
 
   If Not Result Then
   Begin
-    PIDEInfo(inParam)^.outHWND := inHWND;
-    PIDEInfo(inParam)^.outWindowCaption := title;
+    PAEIDEInfo(inParam)^.outHWND := inHWND;
+    PAEIDEInfo(inParam)^.outWindowCaption := title;
   End;
 End;
 
@@ -89,12 +89,12 @@ End;
 // TDelphiDDEManager
 //
 
-Constructor TDelphiDDEManager.Create;
+Constructor TAEDelphiDDEManager.Create;
 Begin
   inherited Create('bds', 'system');
 End;
 
-Procedure TDelphiDDEManager.OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal);
+Procedure TAEDelphiDDEManager.OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal);
 Begin
   Self.ExecuteCommand('[open("' + inFileName + '")]', inPID, inTimeoutInMs);
 End;
@@ -104,9 +104,9 @@ End;
 // TDelphiInstance
 //
 
-Procedure TDelphiInstance.InternalFindIDEWindow;
+Procedure TAEDelphiInstance.InternalFindIDEWindow;
 Var
-  info: PIDEInfo;
+  info: PAEIDEInfo;
 Begin
   inherited;
 
@@ -125,11 +125,11 @@ Begin
   End;
 End;
 
-Procedure TDelphiInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
+Procedure TAEDelphiInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
-  ddemgr: TDelphiDDEManager;
+  ddemgr: TAEDelphiDDEManager;
 Begin
-  ddemgr := TDelphiDDEManager.Create;
+  ddemgr := TAEDelphiDDEManager.Create;
   Try
     ddemgr.OpenFile(inFileName, Self.PID, inTimeOutInMs);
   Finally
@@ -141,29 +141,29 @@ End;
 // TBorlandDelphiVersion
 //
 
-Class Function TBorlandDelphiVersion.BDSRoot: String;
+Class Function TAEBorlandDelphiVersion.BDSRoot: String;
 Begin
   Result := 'SOFTWARE\Borland\Delphi';
 End;
 
-Procedure TBorlandDelphiVersion.InternalRefreshInstances;
+Procedure TAEBorlandDelphiVersion.InternalRefreshInstances;
 Var
   pid: Cardinal;
-  ddemgr: TDelphiDDEManager;
+  ddemgr: TAEDelphiDDEManager;
 Begin
   inherited;
 
-  ddemgr := TDelphiDDEManager.Create;
+  ddemgr := TAEDelphiDDEManager.Create;
   Try
     For pid In ddemgr.DDEServerPIDs Do
       If ProcessName(pid).ToLower = Self.ExecutablePath.ToLower Then
-        AddInstance(TDelphiInstance.Create(Self, pid));
+        AddInstance(TAEDelphiInstance.Create(Self, pid));
   Finally
     FreeAndNil(ddemgr);
   End;
 End;
 
-Function TBorlandDelphiVersion.InternalGetName: String;
+Function TAEBorlandDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     6:
@@ -179,12 +179,12 @@ End;
 // TBorland2DelphiVersion
 //
 
-Class function TBorland2DelphiVersion.BDSRoot: String;
+Class function TAEBorland2DelphiVersion.BDSRoot: String;
 Begin
   Result := 'SOFTWARE\Borland\BDS';
 End;
 
-Function TBorland2DelphiVersion.InternalGetName: String;
+Function TAEBorland2DelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     3:
@@ -202,12 +202,12 @@ End;
 // TCodegearDelphiVersion
 //
 
-Class Function TCodegearDelphiVersion.BDSRoot: String;
+Class Function TAECodegearDelphiVersion.BDSRoot: String;
 Begin
   Result := 'SOFTWARE\CodeGear\BDS';
 End;
 
-Function TCodegearDelphiVersion.InternalGetName: String;
+Function TAECodegearDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     6:
@@ -223,12 +223,12 @@ End;
 // TEmbarcaderoDelphiVersion
 //
 
-Class Function TEmbarcaderoDelphiVersion.BDSRoot: String;
+Class Function TAEEmbarcaderoDelphiVersion.BDSRoot: String;
 Begin
   Result := 'SOFTWARE\Embarcadero\BDS';
 End;
 
-Function TEmbarcaderoDelphiVersion.InternalGetName: String;
+Function TAEEmbarcaderoDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     8:
@@ -266,7 +266,7 @@ End;
 // TDelphiVersions
 //
 
-Procedure TDelphiVersions.DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TDelphiVersionClass);
+Procedure TAEDelphiVersions.DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TAEDelphiVersionClass);
 Var
   s: String;
   sl: TStringList;
@@ -300,7 +300,7 @@ Begin
   End;
 End;
 
-Procedure TDelphiVersions.InternalRefreshInstalledVersions;
+Procedure TAEDelphiVersions.InternalRefreshInstalledVersions;
 Var
   reg: TRegistry;
 Begin
@@ -310,10 +310,10 @@ Begin
   Try
     reg.RootKey := HKEY_CURRENT_USER;
 
-    DiscoverVersions(reg, TBorlandDelphiVersion);
-    DiscoverVersions(reg, TBorland2DelphiVersion);
-    DiscoverVersions(reg, TCodegearDelphiVersion);
-    DiscoverVersions(reg, TEmbarcaderoDelphiVersion);
+    DiscoverVersions(reg, TAEBorlandDelphiVersion);
+    DiscoverVersions(reg, TAEBorland2DelphiVersion);
+    DiscoverVersions(reg, TAECodegearDelphiVersion);
+    DiscoverVersions(reg, TAEEmbarcaderoDelphiVersion);
   Finally
     FreeAndNil(reg);
   End;

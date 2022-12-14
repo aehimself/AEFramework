@@ -52,24 +52,32 @@ Begin
   _convs := TDictionary<Cardinal, HConv>.Create;
   _convlist := 0;
   _service := inService;
-  _servicehandle := 0;
   _topic := inTopic;
-  _topichandle := 0;
 
   If DdeInitializeW(_ddeid, nil, APPCMD_CLIENTONLY, 0) <> DMLERR_NO_ERROR Then
     Raise EAEDDEManagerException.Create('DDE initialization failed!');
 
-  _servicehandle := DdeCreateStringHandleW(_ddeid, PChar(_service), CP_WINUNICODE);
-  If _servicehandle = 0 Then
-    Raise EAEDDEManagerException.Create('Creating service handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  If Not _service.IsEmpty Then
+  Begin
+    _servicehandle := DdeCreateStringHandleW(_ddeid, PChar(_service), CP_WINUNICODE);
+    If _servicehandle = 0 Then
+      Raise EAEDDEManagerException.Create('Creating service handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
-  DdeKeepStringHandle(_ddeid, _servicehandle);
+    DdeKeepStringHandle(_ddeid, _servicehandle);
+  End
+  Else
+    _servicehandle := 0;
 
-  _topichandle := DdeCreateStringHandleW(_ddeid, PChar(_topic), CP_WINUNICODE);
-  If _topichandle = 0 Then
-    Raise EAEDDEManagerException.Create('Creating topic handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  If Not _topic.IsEmpty Then
+  Begin
+    _topichandle := DdeCreateStringHandleW(_ddeid, PChar(_topic), CP_WINUNICODE);
+    If (_topichandle = 0) And Not _topic.IsEmpty  Then
+      Raise EAEDDEManagerException.Create('Creating topic handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
-  DdeKeepStringHandle(_ddeid, _topichandle);
+    DdeKeepStringHandle(_ddeid, _topichandle);
+  End
+  Else
+    _topichandle := 0;
 
   RefreshServers;
 end;
