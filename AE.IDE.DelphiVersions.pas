@@ -128,9 +128,19 @@ End;
 Procedure TAEDelphiInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
   ddemgr: TAEDelphiDDEManager;
+  a: Integer;
+  found: Boolean;
 Begin
   ddemgr := TAEDelphiDDEManager.Create;
   Try
+    found := False;
+    Repeat
+      For a := 0 To Length(ddemgr.DDEServerPIDs) - 1 Do
+        found := ddemgr.DDEServerPIDs[a] = Self.PID;
+
+      If Not found Then
+        ddemgr.RefreshServers;
+    Until found;
     ddemgr.OpenFile(inFileName, Self.PID, inTimeOutInMs);
   Finally
     FreeAndNil(ddemgr);

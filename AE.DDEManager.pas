@@ -39,6 +39,8 @@ Implementation
 
 Procedure TAEDDEManager.CloseConvList;
 Begin
+  _convs.Clear;
+
   If (_convlist <> 0) And Not DdeDisconnectList(_convlist) Then
     Raise EAEDDEManagerException.Create('Releasing the list of DDE servers failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
@@ -144,8 +146,6 @@ Var
   convinfo: TConvInfo;
   a: Cardinal;
 Begin
-  _convs.Clear;
-
   CloseConvList;
 
   _convlist := DdeConnectList(_ddeid, _servicehandle, _topichandle, 0, nil);

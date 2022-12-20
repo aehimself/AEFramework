@@ -114,9 +114,20 @@ End;
 Procedure TAEVSInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
 Var
   ddemgr: TAEVSDDEManager;
+  a: Integer;
+  found: Boolean;
 Begin
   ddemgr := TAEVSDDEManager.Create(_versionnumber);
   Try
+    found := False;
+    Repeat
+      For a := 0 To Length(ddemgr.DDEServerPIDs) - 1 Do
+        found := ddemgr.DDEServerPIDs[a] = Self.PID;
+
+      If Not found Then
+        ddemgr.RefreshServers;
+    Until found;
+
     ddemgr.ExecuteCommand('[Open("' + inFileName + '")]', Self.PID, inTimeOutInMs);
   Finally
     FreeAndNil(ddemgr);
