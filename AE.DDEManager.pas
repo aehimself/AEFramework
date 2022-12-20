@@ -111,21 +111,22 @@ Begin
   success := False;
   lasterror := 0;
 
-  // https://learn.microsoft.com/en-us/windows/win32/api/ddeml/nf-ddeml-ddecreatedatahandle
-  // Create a data handle what we are going to free up. Therefore the same data can be used in multiple conversations.
-  datahandle := DdeCreateDataHandle(_ddeid, @PChar(inCommand)[0], Length(inCommand) * SizeOf(Char), 0, 0, CF_TEXT, HDATA_APPOWNED);
-  If datahandle = 0 Then
-    Raise EAEDDEManagerException.Create('Creating data handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  For hc In _convs[inPID].ToArray Do
+  Begin
+    datahandle := DdeCreateDataHandle(_ddeid, @PChar(inCommand)[0], Length(inCommand) * SizeOf(Char), 0, 0, CF_TEXT, 0);
+    If datahandle = 0 Then
+      Raise EAEDDEManagerException.Create('Creating data handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
-  Try
-    For hc In _convs[inPID].ToArray Do
-      If DdeClientTransaction(Pointer(datahandle), DWORD(-1), hc, 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @res) = 0 Then
-        lasterror := DdeGetLastError(_ddeid)
-      Else
-        success := True;
-  Finally
-    If Not DdeFreeDataHandle(datahandle) Then
-      Raise EAEDDEManagerException.Create('Could not free data handle, DDE error ' + DdeGetLastError(_ddeid).ToString);
+    If DdeClientTransaction(Pointer(datahandle), DWORD(-1), hc, 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @res) = 0 Then
+    Begin
+      lasterror := DdeGetLastError(_ddeid);
+
+      // If an error happens, we have to free up the data handle
+      If Not DdeFreeDataHandle(datahandle) Then
+        Raise EAEDDEManagerException.Create('Could not free data handle, DDE error ' + DdeGetLastError(_ddeid).ToString);
+    End
+    Else
+      success := True;
   End;
 
   If Not success And (lasterror <> 0) Then
