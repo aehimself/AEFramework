@@ -15,9 +15,9 @@ Type
     _versionnumber: Integer;
   strict protected
     Procedure InternalFindIDEWindow; Override;
+    Procedure InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000); Override;
   public
     Constructor Create(inOwner: TComponent; Const inPID: Cardinal; Const inVersionNumber: Integer); ReIntroduce;
-    Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
   End;
 
   TAEVSVersion = Class(TAEIDEVersion)
@@ -111,12 +111,14 @@ Begin
   End;
 End;
 
-Procedure TAEVSInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
+Procedure TAEVSInstance.InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
 Var
   ddemgr: TAEVSDDEManager;
   a: Integer;
   found: Boolean;
 Begin
+  inherited;
+
   ddemgr := TAEVSDDEManager.Create(_versionnumber);
   Try
     found := False;

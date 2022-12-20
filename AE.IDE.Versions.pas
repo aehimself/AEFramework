@@ -12,11 +12,13 @@ Type
     _pid: Cardinal;
   strict protected
     Procedure InternalFindIDEWindow; Virtual;
+    Procedure InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000); Virtual;
     Procedure SetIDECaption(Const inIDECaption: String);
     Procedure SetIDEHWND(Const inIDEHWND: HWND);
     Function InternalIsIDEBusy: Boolean; Virtual;
   public
     Constructor Create(inOwner: TComponent; Const inPID: Cardinal); ReIntroduce; Virtual;
+    Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
     Procedure UpdateCaption;
     Function FindIdeWindow(Const inForceSearch: Boolean = False): Boolean;
     Function IsIDEBusy: Boolean;
@@ -147,9 +149,19 @@ Begin
     RaiseLastOSError(res);
 End;
 
+Procedure TAEIDEInstance.InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
+Begin
+  // Dummy
+End;
+
 Function TAEIDEInstance.IsIDEBusy: Boolean;
 Begin
   Result := Self.InternalIsIDEBusy;
+End;
+
+Procedure TAEIDEInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
+Begin
+  Self.InternalOpenFile(inFileName, inTimeOutInMs);
 End;
 
 Procedure TAEIDEInstance.SetIDECaption(Const inIDECaption: String);

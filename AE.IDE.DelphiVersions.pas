@@ -14,8 +14,7 @@ Type
   TAEDelphiInstance = Class(TAEIDEInstance)
   strict protected
     Procedure InternalFindIDEWindow; Override;
-  public
-    Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
+    Procedure InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000); Override;
   End;
 
   TAEBorlandDelphiVersion = Class(TAEIDEVersion)
@@ -125,12 +124,14 @@ Begin
   End;
 End;
 
-Procedure TAEDelphiInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
+Procedure TAEDelphiInstance.InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
   ddemgr: TAEDelphiDDEManager;
   a: Integer;
   found: Boolean;
 Begin
+  inherited;
+
   ddemgr := TAEDelphiDDEManager.Create;
   Try
     found := False;
