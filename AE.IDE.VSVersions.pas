@@ -123,11 +123,17 @@ Begin
   Try
     found := False;
     Repeat
+      If Self.InternalAbortOpenFile Then
+        Exit;
+
       For a := 0 To Length(ddemgr.DDEServerPIDs) - 1 Do
         found := ddemgr.DDEServerPIDs[a] = Self.PID;
 
       If Not found Then
+      Begin
+        Sleep(1000);
         ddemgr.RefreshServers;
+      End;
     Until found;
 
     ddemgr.ExecuteCommand('[Open("' + inFileName + '")]', Self.PID, inTimeOutInMs);

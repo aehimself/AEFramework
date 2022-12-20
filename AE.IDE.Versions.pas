@@ -7,6 +7,7 @@ Uses System.Classes, WinApi.Windows, System.SysUtils, System.Generics.Collection
 Type
   TAEIDEInstance = Class(TComponent)
   strict private
+    _abortopenfile: Boolean;
     _idehwnd: HWND;
     _idecaption: String;
     _pid: Cardinal;
@@ -16,8 +17,10 @@ Type
     Procedure SetIDECaption(Const inIDECaption: String);
     Procedure SetIDEHWND(Const inIDEHWND: HWND);
     Function InternalIsIDEBusy: Boolean; Virtual;
+    Property InternalAbortOpenFile: Boolean Read _abortopenfile;
   public
     Constructor Create(inOwner: TComponent; Const inPID: Cardinal); ReIntroduce; Virtual;
+    Procedure AbortOpenFile;
     Procedure OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
     Procedure UpdateCaption;
     Function FindIdeWindow(Const inForceSearch: Boolean = False): Boolean;
@@ -29,6 +32,7 @@ Type
 
   TAEIDEVersion = Class(TComponent)
   strict private
+    _abortnewinstance: Boolean;
     _executablepath: String;
     _instances: TObjectList<TAEIDEInstance>;
     _name: String;
@@ -44,6 +48,7 @@ Type
   public
     Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Virtual;
     Destructor Destroy; Override;
+    Procedure AbortNewInstance;
     Procedure AfterConstruction; Override;
     Procedure RefreshInstances;
     Function InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
@@ -92,10 +97,16 @@ Uses WinApi.Messages, WinApi.PsAPI;
 // TDelphiInstance
 //
 
+Procedure TAEIDEInstance.AbortOpenFile;
+Begin
+  _abortopenfile := True;
+End;
+
 Constructor TAEIDEInstance.Create(inOwner: TComponent; Const inPID: Cardinal);
 Begin
   inherited Create(inOwner);
 
+  _abortopenfile := False;
   _idehwnd := 0;
   _idecaption := '';
   _pid := inPID;
@@ -161,6 +172,8 @@ End;
 
 Procedure TAEIDEInstance.OpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal);
 Begin
+  _abortopenfile := False;
+
   Self.InternalOpenFile(inFileName, inTimeOutInMs);
 End;
 
@@ -190,6 +203,11 @@ End;
 // TIDEVersion
 //
 
+Procedure TAEIDEVersion.AbortNewInstance;
+Begin
+  _abortnewinstance := True;
+End;
+
 Procedure TAEIDEVersion.AddInstance(Const inInstance: TAEIDEInstance);
 Begin
   _instances.Add(inInstance);
@@ -210,6 +228,7 @@ Constructor TAEIDEVersion.Create(inOwner: TComponent; Const inExecutablePath: St
 Begin
   inherited Create(inOwner);
 
+  _abortnewinstance := False;
   _executablepath := inExecutablePath;
   _instances := TObjectList<TAEIDEInstance>.Create(True);
   _name := '';
@@ -290,17 +309,22 @@ Function TAEIDEVersion.NewIDEInstance: TAEIDEInstance;
 Var
   newpid: Cardinal;
 Begin
+  _abortnewinstance := False;
+
   newpid := Self.InternalNewIDEInstance;
 
   Result := nil;
   Repeat
-    Sleep(1000);
+    If _abortnewinstance Then
+      Exit;
+
+    Result := Self.InstanceByPID(newpid);
 
     If Not Assigned(Result) Then
     Begin
-      Self.RefreshInstances;
+      Sleep(1000);
 
-      Result := Self.InstanceByPID(newpid);
+      Self.RefreshInstances;
     End;
   Until Assigned(Result) And Result.FindIdeWindow And Not Result.IsIDEBusy;
 End;

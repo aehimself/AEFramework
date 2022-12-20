@@ -123,7 +123,6 @@
         <DCCReference Include="AE.Comp.ComboBox.pas"/>
         <DCCReference Include="AE.Comp.HeaderMenuItem.pas"/>
         <DCCReference Include="3rdParty\OSVersion.pas"/>
-        <DCCReference Include="3rdParty\StackTrace.pas"/>
         <DCCReference Include="AEFrameworkReg.pas"/>
         <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
         <DCCReference Include="AE.Comp.Updater.pas"/>
