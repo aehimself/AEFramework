@@ -7,7 +7,7 @@ Uses System.Classes, WinApi.DDEml, WinApi.Windows, System.SysUtils, System.Gener
 Type
   TAEDDEManager = Class
   strict private
-    _convs: TDictionary<Cardinal, HConv>;
+    _convs: TObjectDictionary<Cardinal, TList<HConv>>;
     _convlist: HConvList;
     _ddeid: LongInt;
     _service: String;
@@ -49,7 +49,7 @@ Constructor TAEDDEManager.Create(Const inService, inTopic: String);
 Begin
   inherited Create;
 
-  _convs := TDictionary<Cardinal, HConv>.Create;
+  _convs := TObjectDictionary<Cardinal, TList<HConv>>.Create([doOwnsValues]);
   _convlist := 0;
   _service := inService;
   _topic := inTopic;
@@ -104,16 +104,32 @@ Procedure TAEDDEManager.ExecuteCommand(Const inCommand: String; Const inPID: Car
 Var
   datahandle: HDDEData;
   res: LongInt;
+  lasterror: Cardinal;
+  hc: HConv;
+  success: Boolean;
 Begin
-  datahandle := DdeCreateDataHandle(_ddeid, @PChar(inCommand)[0], Length(inCommand) * SizeOf(Char), 0, 0, CF_TEXT, 0);
+  success := False;
+  lasterror := 0;
+
+  // https://learn.microsoft.com/en-us/windows/win32/api/ddeml/nf-ddeml-ddecreatedatahandle
+  // Create a data handle what we are going to free up. Therefore the same data can be used in multiple conversations.
+  datahandle := DdeCreateDataHandle(_ddeid, @PChar(inCommand)[0], Length(inCommand) * SizeOf(Char), 0, 0, CF_TEXT, HDATA_APPOWNED);
   If datahandle = 0 Then
     Raise EAEDDEManagerException.Create('Creating data handle failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
-  If DdeClientTransaction(Pointer(datahandle), DWORD(-1), _convs[inPID], 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @res) = 0 Then
-    Raise EAEDDEManagerException.Create('Executing command failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  Try
+    For hc In _convs[inPID].ToArray Do
+      If DdeClientTransaction(Pointer(datahandle), DWORD(-1), hc, 0, CF_TEXT, XTYP_EXECUTE, inTimeOutInMs, @res) = 0 Then
+        lasterror := DdeGetLastError(_ddeid)
+      Else
+        success := True;
+  Finally
+    If Not DdeFreeDataHandle(datahandle) Then
+      Raise EAEDDEManagerException.Create('Could not free data handle, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  End;
 
-//  If Not DdeFreeDataHandle(hszCmd) Then
-//    Raise EDelphiVersionException.Create('Could not free data handle, DDE error ' + DdeGetLastError(_ddeid).ToString);
+  If Not success And (lasterror <> 0) Then
+    Raise EAEDDEManagerException.Create('Executing command failed, DDE error ' + lasterror.ToString);
 End;
 
 Function TAEDDEManager.GetDDEServerPIDs: TArray<Cardinal>;
@@ -156,7 +172,11 @@ Begin
         Raise EAEDDEManagerException.Create('Retrieving DDE server information failed, DDE error ' + DdeGetLastError(_ddeid).ToString);
 
       GetWindowThreadProcessId(convinfo.hwndPartner, a);
-      _convs.Add(a, conv);
+
+      If Not _convs.ContainsKey(a) Then
+        _convs.Add(a, TList<HConv>.Create);
+
+      _convs[a].Add(conv);
     Until (conv = 0);
   Finally
   End;

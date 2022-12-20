@@ -86,7 +86,7 @@ Begin
 End;
 
 //
-// TDelphiDDEManager
+// TAEDelphiDDEManager
 //
 
 Constructor TAEDelphiDDEManager.Create;
@@ -101,7 +101,7 @@ End;
 
 
 //
-// TDelphiInstance
+// TAEDelphiInstance
 //
 
 Procedure TAEDelphiInstance.InternalFindIDEWindow;
@@ -138,7 +138,7 @@ Begin
 End;
 
 //
-// TBorlandDelphiVersion
+// TAEBorlandDelphiVersion
 //
 
 Class Function TAEBorlandDelphiVersion.BDSRoot: String;
@@ -176,7 +176,7 @@ Begin
 End;
 
 //
-// TBorland2DelphiVersion
+// TAEBorland2DelphiVersion
 //
 
 Class function TAEBorland2DelphiVersion.BDSRoot: String;
@@ -199,7 +199,7 @@ Begin
 End;
 
 //
-// TCodegearDelphiVersion
+// TAECodegearDelphiVersion
 //
 
 Class Function TAECodegearDelphiVersion.BDSRoot: String;
@@ -220,7 +220,7 @@ Begin
 End;
 
 //
-// TEmbarcaderoDelphiVersion
+// TAEEmbarcaderoDelphiVersion
 //
 
 Class Function TAEEmbarcaderoDelphiVersion.BDSRoot: String;
@@ -263,7 +263,7 @@ Begin
 End;
 
 //
-// TDelphiVersions
+// TAEDelphiVersions
 //
 
 Procedure TAEDelphiVersions.DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TAEDelphiVersionClass);

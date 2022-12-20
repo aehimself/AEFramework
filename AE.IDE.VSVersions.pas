@@ -71,7 +71,7 @@ Begin
 End;
 
 //
-// TVSDDEManager
+// TAEVSDDEManager
 //
 
 Constructor TAEVSDDEManager.Create(const inVersion: Integer);
@@ -80,7 +80,7 @@ Begin
 End;
 
 //
-// TVSInstance
+// TAEVSInstance
 //
 
 Constructor TAEVSInstance.Create(inOwner: TComponent; Const inPID: Cardinal; Const inVersionNumber: Integer);
@@ -124,7 +124,7 @@ Begin
 End;
 
 //
-// TVSVersion
+// TAEVSVersion
 //
 
 Function TAEVSVersion.InternalGetName: String;
@@ -169,7 +169,7 @@ Begin
 End;
 
 //
-// TVSVersions
+// TAEVSVersions
 //
 
 Procedure TAEVSVersions.AddFromRegistry;
