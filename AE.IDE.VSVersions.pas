@@ -225,7 +225,14 @@ Var
  jv: TJSONValue;
  jo: TJSONObject;
 Begin
+  {$IF CompilerVersion > 32} // Everything above 10.2...?
   json := TJSONArray(TJSONObject.ParseJSONValue(GetDOSOutput(_vswhere + ' -format json -legacy'), True, True));
+  {$ELSE}
+  json := TJSONArray(TJSONObject.ParseJSONValue(GetDOSOutput(_vswhere + ' -format json -legacy'), True));
+  If Not Assigned(json) Then
+    Raise EJSONException.Create('VSWhere.exe did not return a valid JSON document!');
+  {$ENDIF}
+
   Try
     For jv In json Do
     Begin

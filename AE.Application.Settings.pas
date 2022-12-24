@@ -105,7 +105,14 @@ Begin
 
     Self.BeforeLoad(tb);
 
+    {$IF CompilerVersion > 32} // Everything above 10.2...?
     json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
+    {$ELSE}
+    json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8]));
+    If Not Assigned(json) Then
+      Raise EJSONException.Create('Settings file is not a valid JSON document!');
+    {$ENDIF}
+
     Try
       Self.AsJSON := json;
       _loaded := True;
@@ -144,7 +151,11 @@ Begin
   If Assigned(json) Then
   Try
     If Not _compressed Then
+      {$IF CompilerVersion > 32} // Everything above 10.2...?
       tb := TEncoding.UTF8.GetBytes(json.Format)
+      {$ELSE}
+      tb := TEncoding.UTF8.GetBytes(json.ToJSON)
+      {$ENDIF}
     Else
     Begin
       SetLength(tb, json.EstimatedByteSize);

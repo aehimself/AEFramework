@@ -156,9 +156,9 @@ Begin
   If Not _changelog.IsEmpty Then
     Result.AddPair(TXT_CHANGELOG, _changelog);
   If _channel <> aucProduction Then
-    Result.AddPair(TXT_CHANNEL, Integer(_channel));
+    Result.AddPair(TXT_CHANNEL, TJSONNumber.Create(Integer(_channel)));
   If _deploymentdate > 0 Then
-    Result.AddPair(TXT_DEPLOYMENTDATE, _deploymentdate);
+    Result.AddPair(TXT_DEPLOYMENTDATE, TJSONNumber.Create(_deploymentdate));
   If Not _filehash.IsEmpty Then
     Result.AddPair(TXT_FILEHASH, _filehash);
 End;
@@ -196,7 +196,7 @@ Begin
   If inJSON.GetValue(TXT_CHANNEL) <> nil Then
     _channel := TAEUpdaterChannel((inJSON.GetValue(TXT_CHANNEL) As TJSONNumber).AsInt);
   If inJSON.GetValue(TXT_DEPLOYMENTDATE) <> nil Then
-    _deploymentdate := (inJSON.GetValue(TXT_DEPLOYMENTDATE) As TJSONNumber).AsType<UInt64>;
+    _deploymentdate := inJSON.GetValue(TXT_DEPLOYMENTDATE).GetValue<UInt64>;
   If inJSON.GetValue(TXT_FILEHASH) <> nil Then
     _filehash := (inJSON.GetValue(TXT_FILEHASH) As TJSONString).Value;
 End;
@@ -240,7 +240,7 @@ Begin
     Result.AddPair(TXT_FILENAME, _localfilename);
 
   If _optional Then
-    Result.AddPair(TXT_OPTIONAL, _optional);
+    Result.AddPair(TXT_OPTIONAL, TJSONBool.Create(_optional));
 
   If _versions.Count > 0 Then
   Begin
@@ -346,7 +346,7 @@ Function TAEUpdaterProductMessage.GetAsJSON: TJSONObject;
 Begin
  Result := inherited;
 
- If _channel <> aucProduction Then Result.AddPair(TXT_CHANNEL, Integer(_channel));
+ If _channel <> aucProduction Then Result.AddPair(TXT_CHANNEL, TJSONNumber.Create(Integer(_channel)));
  If Not _message.IsEmpty Then Result.AddPair(TXT_MESSAGE, _message);
 End;
 
@@ -603,7 +603,14 @@ Begin
   SetLength(tb, inStream.Size - inStream.Position);
   inStream.Read(tb, Length(tb));
 
+  {$IF CompilerVersion > 32} // Everything above 10.2...?
   json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8, TJSONObject.TJSONParseOption.RaiseExc]));
+  {$ELSE}
+  json := TJSONObject(TJSONObject.ParseJSONValue(tb, 0, [TJSONObject.TJSONParseOption.IsUTF8]));
+  If Not Assigned(json) Then
+    Raise EJSONException.Create('Update file is not a valid JSON document!');
+  {$ENDIF}
+
   Try
     Self.AsJSON := json;
 

@@ -23,7 +23,7 @@ Type
   public
     Constructor Create(inOwner: TWinControl); Override;
     Procedure DrawControlText(Canvas: TCanvas; Details: TThemedElementDetails;
-      Const S: String; Var R: TRect; Flags: Cardinal); Override;
+      Const S: String; Var R: TRect; Flags: Cardinal); {$IF CompilerVersion > 32}Override;{$ENDIF} // Everything above 10.2...?
   End;
 
   TAEPageControl = Class(TPageControl)

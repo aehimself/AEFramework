@@ -104,7 +104,7 @@ Begin
   If hr.StatusCode <> 200 Then
     Raise EAEUpdaterHTTPFileProviderException.Create('Requested file could not be downloaded!', inFileName, hr.StatusCode, hr.StatusText);
 
-  outStream.CopyFrom(hr.ContentStream);
+  outStream.CopyFrom(hr.ContentStream, hr.ContentStream.Size);
 
   If hr.ContainsHeader('ETag') Then
     Self.ETag[inFileName] :=  hr.HeaderValue['ETag'];

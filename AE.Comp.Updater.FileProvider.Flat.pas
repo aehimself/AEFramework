@@ -21,7 +21,7 @@ Var
 Begin
   fs := TFileStream.Create(inFileName, fmOpenRead + fmShareDenyWrite);
   Try
-    outStream.CopyFrom(fs);
+    outStream.CopyFrom(fs, fs.Size);
   Finally
     FreeAndNil(fs);
   End;

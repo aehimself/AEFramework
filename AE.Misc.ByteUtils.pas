@@ -81,6 +81,7 @@ Function Decompress(Const inBytes: TBytes): TBytes;
 Var
   compressor: TZDecompressionStream;
   input: TBytesStream;
+  zlibheader: TBytes;
 Begin
   input := TBytesStream.Create;
   Try
@@ -94,7 +95,10 @@ Begin
     If (Length(inBytes) > 2) And
       ((inBytes[0] <> $78) Or ((inBytes[1] <> $01) And (inBytes[1] <> $9C) And
       (inBytes[1] <> $DA))) Then
-      input.Write([$78, $DA], 2);
+    Begin
+      zlibheader := [$78, $DA];
+      input.Write(zlibheader[0], 2);
+    End;
 
     input.Write(inBytes, Length(inBytes));
     input.Position := 0;
