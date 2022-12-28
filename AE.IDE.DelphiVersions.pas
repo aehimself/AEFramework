@@ -2,12 +2,11 @@
 
 Interface
 
-Uses System.SysUtils,  AE.DDEManager, AE.IDE.Versions, System.Win.Registry;
+Uses System.SysUtils,  AE.DDEManager, AE.IDE.Versions, System.Win.Registry, System.Classes;
 
 Type
   TAEDelphiDDEManager = Class(TAEDDEManager)
   public
-    Constructor Create; ReIntroduce;
     Procedure OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
   End;
 
@@ -18,11 +17,22 @@ Type
   End;
 
   TAEBorlandDelphiVersion = Class(TAEIDEVersion)
+  strict private
+    _ddeansimode: Boolean;
+    _ddeservice: String;
+    _ddetopic: String;
   strict protected
     Procedure InternalRefreshInstances; Override;
     Function InternalGetName: String; Override;
+    Property InternalDDEANSIMode: Boolean Read _ddeansimode Write _ddeansimode;
+    Property InternalDDEService: String Read _ddeservice Write _ddeservice;
+    Property InternalDDETopic: String Read _ddetopic Write _ddetopic;
   public
     Class Function BDSRoot: String; Virtual;
+    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Override;
+    Property DDEANSIMode: Boolean Read _ddeansimode;
+    Property DDEService: String Read _ddeservice;
+    Property DDETopic: String Read _ddetopic;
   End;
 
   TAEDelphiVersionClass = Class Of TAEBorlandDelphiVersion;
@@ -39,6 +49,7 @@ Type
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
+    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Override;
   End;
 
   TAEEmbarcaderoDelphiVersion = Class(TAEBorlandDelphiVersion)
@@ -59,7 +70,7 @@ Type
 
 Implementation
 
-Uses System.Classes, WinApi.Windows;
+Uses WinApi.Windows;
 
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
@@ -87,11 +98,6 @@ End;
 //
 // TAEDelphiDDEManager
 //
-
-Constructor TAEDelphiDDEManager.Create;
-Begin
-  inherited Create('bds', 'system');
-End;
 
 Procedure TAEDelphiDDEManager.OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal);
 Begin
@@ -127,10 +133,13 @@ End;
 Procedure TAEDelphiInstance.InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
   ddemgr: TAEDelphiDDEManager;
+  version: TAEBorlandDelphiVersion;
 Begin
   inherited;
 
-  ddemgr := TAEDelphiDDEManager.Create;
+  version := Self.Owner As TAEBorlandDelphiVersion;
+
+  ddemgr := TAEDelphiDDEManager.Create(version.DDEService, version.DDETopic, version.DDEANSIMode);
   Try
     While Not ddemgr.ServerFound(Self.PID) Do
     Begin
@@ -163,7 +172,7 @@ Var
 Begin
   inherited;
 
-  ddemgr := TAEDelphiDDEManager.Create;
+  ddemgr := TAEDelphiDDEManager.Create(Self.DDEService, Self.DDETopic, Self.DDEANSIMode);
   Try
     For pid In ddemgr.DDEServerPIDs Do
       If ProcessName(pid).ToLower = Self.ExecutablePath.ToLower Then
@@ -172,6 +181,15 @@ Begin
     FreeAndNil(ddemgr);
   End;
 End;
+
+Constructor TAEBorlandDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
+Begin
+  inherited;
+
+  _ddeansimode := True;
+  _ddeservice := 'delphi32';
+  _ddetopic := 'system';
+end;
 
 Function TAEBorlandDelphiVersion.InternalGetName: String;
 Begin
@@ -215,6 +233,16 @@ End;
 Class Function TAECodegearDelphiVersion.BDSRoot: String;
 Begin
   Result := 'SOFTWARE\CodeGear\BDS';
+End;
+
+Constructor TAECodegearDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
+Begin
+  inherited;
+
+  Self.InternalDDEService := 'bds';
+
+  // The first Unicode version was Delphi 2009
+  Self.InternalDDEANSIMode := False;
 End;
 
 Function TAECodegearDelphiVersion.InternalGetName: String;

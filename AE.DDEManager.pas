@@ -7,18 +7,19 @@ Uses WinAPI.Messages, WinAPI.Windows, System.Generics.Collections, System.SysUti
 Type
   TAEDDEManager = Class
   strict private
+    _ansimode: Boolean;
     _servers: TObjectDictionary<Cardinal, TList<HWND>>;
     _service: String;
     _topic: String;
+    Procedure CheckPID(Const inPID: Cardinal);
     Procedure DiscoveryHandler(Var inMessage: TMessage);
     Procedure InternalExecuteCommand(Const inCommand: String; Const inWindowHandle: HWND; Const inTimeOutInMs: Cardinal = 5000);
     Procedure Purge;
-    Procedure CheckPID(Const inPID: Cardinal);
     Function GetDDEServerPIDs: TArray<Cardinal>;
     Function GetDDEServerWindows(Const inPID: Cardinal): TArray<HWND>;
     Function GlobalLockString(Const inValue: String; Const inFlags: Cardinal): THandle;
   public
-    Constructor Create(Const inService, inTopic: String); ReIntroduce;
+    Constructor Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False); ReIntroduce;
     Destructor Destroy; Override;
     Procedure ExecuteCommand(Const inCommand: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
     Procedure RefreshServers;
@@ -45,10 +46,11 @@ Begin
     Raise EAEDDEManagerException.Create('Process with PID ' + inPID.ToString + ' was not detected as a valid DDE target for service ' + _service + ', topic ' + _topic + '!');
 End;
 
-Constructor TAEDDEManager.Create(Const inService, inTopic: String);
+Constructor TAEDDEManager.Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False);
 Begin
   inherited Create;
 
+  _ansimode := inANSIMode;
   _servers := TObjectDictionary<Cardinal, TList<HWND>>.Create([doOwnsValues]);
   _service := inService;
   _topic := inTopic;
@@ -112,13 +114,23 @@ End;
 
 Function TAEDDEManager.GlobalLockString(Const inValue: String; Const inFlags: Cardinal): THandle;
 Var
+  size: Integer;
   p: Pointer;
 Begin
-  Result := GlobalAlloc(GMEM_ZEROINIT Or inFlags, (Length(inValue) * SizeOf(Char)) + 1);
+  If _ansimode Then
+    size := Length(inValue)
+  Else
+    size := Length(inValue) * SizeOf(Char);
+
+  Result := GlobalAlloc(GMEM_ZEROINIT Or inFlags, size + 1);
 
   Try
     p := GlobalLock(Result);
-    Move(PChar(inValue)^, p^, Length(inValue) * SizeOf(Char));
+
+    If _ansimode Then
+      Move(PAnsiChar(AnsiString(inValue))^, p^, size)
+    Else
+      Move(PChar(inValue)^, p^, size);
   Except
     GlobalFree(Result);
     Raise;
@@ -136,15 +148,21 @@ Var
 Begin
   commandhandle := GlobalLockString(inCommand, GMEM_DDESHARE);
 
-  exechwnd := AllocateHWnd(nil);
+  exechwnd := AllocateHwnd(nil);
   Try
-    serviceatom := GlobalAddAtom(PChar(_service));
+    If _ansimode then
+      serviceatom := GlobalAddAtomA(PAnsiChar(AnsiString(_service)))
+    Else
+      serviceatom := GlobalAddAtom(PChar(_service));
 
     If serviceatom = 0 Then
       RaiseLastOSError;
 
     Try
-      topicatom := GlobalAddAtom(PChar(_topic));
+      If _ansimode Then
+        topicatom := GlobalAddAtomA(PAnsiChar(AnsiString(_topic)))
+      Else
+        topicatom := GlobalAddAtom(PChar(_topic));
 
       If topicatom = 0 Then
         RaiseLastOSError;
@@ -223,13 +241,19 @@ Begin
 
   discoverer := AllocateHWnd(DiscoveryHandler);
   Try
-    serviceatom := GlobalAddAtom(PChar(_service));
+    If _ansimode Then
+      serviceatom := GlobalAddAtomA(PAnsiChar(AnsiString(_service)))
+    Else
+      serviceatom := GlobalAddAtom(PChar(_service));
 
     If serviceatom = 0 Then
       RaiseLastOSError;
 
     Try
-      topicatom := GlobalAddAtom(PChar(_topic));
+      If _ansimode Then
+        topicatom := GlobalAddAtomA(PAnsiChar(AnsiString(_topic)))
+      Else
+        topicatom := GlobalAddAtom(PChar(_topic));
 
       If topicatom = 0 Then
         RaiseLastOSError;
