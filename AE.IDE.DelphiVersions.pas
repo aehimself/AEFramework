@@ -52,7 +52,7 @@ Type
     Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Override;
   End;
 
-  TAEEmbarcaderoDelphiVersion = Class(TAEBorlandDelphiVersion)
+  TAEEmbarcaderoDelphiVersion = Class(TAECodegearDelphiVersion)
   strict protected
     Function InternalGetName: String; Override;
   public
