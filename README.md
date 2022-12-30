@@ -1,6 +1,6 @@
 # AEFramework
 
-AEFramework is a set of helper units / components which I use for most of my projects. Since they might be of interest of others it is not hosted on GitHub. Feel free to use, modify.
+AEFramework is a set of helper units / components which I use for most of my projects. Since they might be of interest of others it is not hosted on GitHub. Feel free to use, modify under [Creative Commons Attribution 4.0 International](http://creativecommons.org/licenses/by/4.0/)
 
 ## AE.Application.*.pas
 These classes can be used to quickly create a service / console application.
