@@ -45,9 +45,6 @@ Implementation
 
 Uses System.Classes;
 
-Const
-  POSTED_DDE_ACK = WM_USER + 663;
-
 Procedure TAEDDEManager.CheckPID(Const inPID: Cardinal);
 Begin
   If Not _servers.ContainsKey(inPID) Then

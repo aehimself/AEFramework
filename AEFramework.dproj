@@ -137,6 +137,7 @@
         <DCCReference Include="AE.IDE.DelphiVersions.pas"/>
         <DCCReference Include="AE.IDE.Versions.pas"/>
         <DCCReference Include="AE.IDE.VSVersions.pas"/>
+        <DCCReference Include="AE.IDE.Versions.Consts.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

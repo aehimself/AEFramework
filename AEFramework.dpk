@@ -63,6 +63,7 @@ contains
   AE.DDEManager in 'AE.DDEManager.pas',
   AE.IDE.DelphiVersions in 'AE.IDE.DelphiVersions.pas',
   AE.IDE.Versions in 'AE.IDE.Versions.pas',
-  AE.IDE.VSVersions in 'AE.IDE.VSVersions.pas';
+  AE.IDE.VSVersions in 'AE.IDE.VSVersions.pas',
+  AE.IDE.Versions.Consts in 'AE.IDE.Versions.Consts.pas';
 
 end.

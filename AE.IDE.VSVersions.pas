@@ -50,7 +50,7 @@ Type
 
 Implementation
 
-Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON;
+Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON, AE.IDE.Versions.Consts;
 
 Type
   PTOKEN_USER = ^TOKEN_USER;
@@ -150,23 +150,23 @@ Function TAEVSVersion.InternalGetName: String;
 Begin
   Case Round(Self.VersionNumber) Of
     8:
-      Result := 'Microsoft Visual Studio 2005';
+      Result := IDEVER_VS2005;
     9:
-      Result := 'Microsoft Visual Studio 2008';
+      Result := IDEVER_VS2008;
     10:
-      Result := 'Microsoft Visual Studio 2010';
+      Result := IDEVER_VS2010;
     11:
-      Result := 'Microsoft Visual Studio 2012';
+      Result := IDEVER_VS2012;
     12:
-      Result := 'Microsoft Visual Studio 2013';
+      Result := IDEVER_VS2013;
     14:
-      Result := 'Microsoft Visual Studio 2015';
+      Result := IDEVER_VS2015;
     15:
-      Result := 'Microsoft Visual Studio 2017';
+      Result := IDEVER_VS2017;
     16:
-      Result := 'Microsoft Visual Studio 2019';
+      Result := IDEVER_VS2019;
     17:
-      Result := 'Microsoft Visual Studio 2022';
+      Result := IDEVER_VS2022;
     Else
       Result := 'Microsoft Visual Studio v' + Self.VersionNumber.ToString;
   End;

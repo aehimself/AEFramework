@@ -78,7 +78,7 @@ Type
 
 Implementation
 
-Uses WinApi.Windows;
+Uses WinApi.Windows, AE.IDE.Versions.Consts;
 
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
@@ -203,9 +203,9 @@ Function TAEBorlandDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     6:
-      Result := 'Borland Delphi 6';
+      Result := IDEVER_DELPHI6;
     7:
-      Result := 'Borland Delphi 7';
+      Result := IDEVER_DELPHI7;
     Else
       Result := '';
   End;
@@ -224,11 +224,11 @@ Function TAEBorland2DelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     3:
-      Result := 'Borland Delphi 2005';
+      Result := IDEVER_DELPHI2005;
     4:
-      Result := 'Borland Delphi 2006';
+      Result := IDEVER_DELPHI2006;
     5:
-      Result := 'Borland Delphi 2007';
+      Result := IDEVER_DELPHI2007;
     Else
       Result := '';
   End;
@@ -257,9 +257,9 @@ Function TAECodegearDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     6:
-      Result := 'CodeGear Delphi 2009';
+      Result := IDEVER_DELPHI2009;
     7:
-      Result := 'CodeGear Delphi 2010';
+      Result := IDEVER_DELPHI2010;
     Else
       Result := '';
   End;
@@ -278,33 +278,33 @@ Function TAEEmbarcaderoDelphiVersion.InternalGetName: String;
 Begin
   Case Self.VersionNumber Of
     8:
-      Result := 'Embarcadero Delphi XE';
+      Result := IDEVER_DELPHIXE;
     9:
-      Result := 'Embarcadero Delphi XE2';
+      Result := IDEVER_DELPHIXE2;
     10:
-      Result := 'Embarcadero Delphi XE3';
+      Result := IDEVER_DELPHIXE3;
     11:
-      Result := 'Embarcadero Delphi XE4';
+      Result := IDEVER_DELPHIXE4;
     12:
-      Result := 'Embarcadero Delphi XE5';
+      Result := IDEVER_DELPHIXE5;
     14:
-      Result := 'Embarcadero Delphi XE6';
+      Result := IDEVER_DELPHIXE6;
     15:
-      Result := 'Embarcadero Delphi XE7';
+      Result := IDEVER_DELPHIXE7;
     16:
-      Result := 'Embarcadero Delphi XE8';
+      Result := IDEVER_DELPHIXE8;
     17:
-      Result := 'Embarcadero Delphi 10 Seattle';
+      Result := IDEVER_DELPHI10;
     18:
-      Result := 'Embarcadero Delphi 10.1 Berlin';
+      Result := IDEVER_DELPHI101;
     19:
-      Result := 'Embarcadero Delphi 10.2 Tokyo';
+      Result := IDEVER_DELPHI102;
     20:
-      Result := 'Embarcadero Delphi 10.3 Rio';
+      Result := IDEVER_DELPHI103;
     21:
-      Result := 'Embarcadero Delphi 10.4 Sydney';
+      Result := IDEVER_DELPHI104;
     22:
-      Result := 'Embarcadero Delphi 11 Alexandria';
+      Result := IDEVER_DELPHI11;
   End;
 End;
 
