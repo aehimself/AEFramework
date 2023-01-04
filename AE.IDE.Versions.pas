@@ -19,6 +19,7 @@ Type
     _idehwnd: HWND;
     _idecaption: String;
     _pid: Cardinal;
+    Function GetName: String;
   strict protected
     Procedure InternalFindIDEWindow; Virtual;
     Procedure InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000); Virtual;
@@ -35,6 +36,7 @@ Type
     Function IsIDEBusy: Boolean;
     Property IDECaption: String Read _idecaption;
     Property IDEHWND: HWND Read _idehwnd;
+    Property Name: String Read GetName;
     Property PID: Cardinal Read _pid;
   End;
 
@@ -44,14 +46,13 @@ Type
     _executablepath: String;
     _instances: TObjectList<TAEIDEInstance>;
     _name: String;
-    _newinstanceparams: String;
     _versionnumber: Integer;
     Function GetInstances: TArray<TAEIDEInstance>;
   strict protected
     Procedure AddInstance(Const inInstance: TAEIDEInstance);
     Procedure InternalRefreshInstances; Virtual;
     Function InternalGetName: String; Virtual;
-    Function InternalNewIDEInstance: Cardinal; Virtual;
+    Function InternalNewIDEInstance(Const inParams: String): Cardinal; Virtual;
     Function ProcessName(Const inPID: Cardinal): String;
   public
     Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Virtual;
@@ -61,11 +62,10 @@ Type
     Procedure RefreshInstances;
     Function InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
     Function IsRunning: Boolean;
-    Function NewIDEInstance: TAEIDEInstance;
+    Function NewIDEInstance(Const inParams: String = ''): TAEIDEInstance;
     Property ExecutablePath: String Read _executablepath;
     Property Instances: TArray<TAEIDEInstance> Read GetInstances;
     Property Name: String Read _name;
-    Property NewInstanceParams: String Read _newinstanceparams Write _newinstanceparams;
     Property VersionNumber: Integer Read _versionnumber;
   End;
 
@@ -138,6 +138,14 @@ Begin
   Self.InternalFindIDEWindow;
 
   Result := _idehwnd <> 0;
+End;
+
+Function TAEIDEInstance.GetName: String;
+Begin
+  If _idecaption.IsEmpty Then
+    Result := (Self.Owner As TAEIDEVersion).Name + ' (PID: ' + _pid.ToString + ')'
+  Else
+    Result := _idecaption + ' (PID: ' + _pid.ToString + ')';
 End;
 
 Procedure TAEIDEInstance.InternalFindIDEWindow;
@@ -237,10 +245,9 @@ Begin
   inherited Create(inOwner);
 
   _abortnewinstance := False;
-  _executablepath := inExecutablePath;
+  _executablepath := inExecutablePath.Trim;
   _instances := TObjectList<TAEIDEInstance>.Create(True);
   _name := '';
-  _newinstanceparams := '';
   _versionnumber := inVersionNumber;
 End;
 
@@ -282,7 +289,7 @@ Begin
   Result := '';
 End;
 
-Function TAEIDEVersion.InternalNewIDEInstance: Cardinal;
+Function TAEIDEVersion.InternalNewIDEInstance(Const inParams: String): Cardinal;
 Var
   startinfo: TStartupInfo;
   procinfo: TProcessInformation;
@@ -292,8 +299,16 @@ Begin
   startinfo.cb := SizeOf(TStartupInfo);
   FillChar(procinfo, SizeOf(TProcessInformation), #0);
 
-  If _newinstanceparams.IsEmpty Then cmd := Self.ExecutablePath
-    Else cmd := Self.ExecutablePath + ' ' + _newinstanceparams;
+  cmd := Self.ExecutablePath;
+
+  If Not cmd.StartsWith('"') Then
+    cmd := '"' + cmd;
+
+  If Not cmd.EndsWith('"') Then
+    cmd := cmd + '"';
+
+  If Not inParams.IsEmpty Then
+    cmd := cmd + ' ' + inParams;
 
   If Not CreateProcess(nil, PChar(cmd), nil, nil, False, CREATE_NEW_PROCESS_GROUP, nil, nil, startinfo, procinfo) Then
     RaiseLastOSError;
@@ -313,13 +328,13 @@ Begin
   Result := _instances.Count > 0;
 End;
 
-Function TAEIDEVersion.NewIDEInstance: TAEIDEInstance;
+Function TAEIDEVersion.NewIDEInstance(Const inParams: String = ''): TAEIDEInstance;
 Var
   newpid: Cardinal;
 Begin
   _abortnewinstance := False;
 
-  newpid := Self.InternalNewIDEInstance;
+  newpid := Self.InternalNewIDEInstance(inParams);
 
   Result := nil;
   Repeat
