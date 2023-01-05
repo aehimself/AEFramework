@@ -340,7 +340,7 @@ End;
 
 Procedure TAEVSVersions.SetVSWhere(const inVSWhereLocation: String);
 Begin
-  If _vswhere <> inVSWhereLocation Then
+  If _vswhere = inVSWhereLocation Then
     Exit;
 
   _vswhere := inVSWhereLocation;
