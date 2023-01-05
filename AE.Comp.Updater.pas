@@ -233,10 +233,10 @@ Begin
   If fname.IsEmpty Then
     fname := ExtractFileName(ParamStr(0));
 
-  product := _updatefile.Product[_product];
-
   If Not _updatefile.ContainsProduct(_product) Then
     Exit;
+
+  product := _updatefile.Product[_product];
 
   If Not product.ContainsFile(fname) Then
     Raise EAEUpdaterException.Create(_product + ' does not contain a file named ' + fname);
