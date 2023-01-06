@@ -80,6 +80,10 @@ Implementation
 
 Uses WinApi.Windows, AE.IDE.Versions.Consts;
 
+Const
+ MINDELPHIVERSION = 3;
+ MAXDELPHIVERSION = 22;
+
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
   ppid: Cardinal;
@@ -209,6 +213,8 @@ Begin
     Else
       Result := '';
   End;
+
+  // IMPORTANT! IN CASE NEW VERSIONS ARE ADDED, MODIFY THE MAXDELPHIVERSION CONSTANT ACCORDINGLY FOR PROPER REGISTRY ENTRY VALIDATION!
 End;
 
 //
@@ -232,6 +238,8 @@ Begin
     Else
       Result := '';
   End;
+
+  // IMPORTANT! IN CASE NEW VERSIONS ARE ADDED, MODIFY THE MAXDELPHIVERSION CONSTANT ACCORDINGLY FOR PROPER REGISTRY ENTRY VALIDATION!
 End;
 
 //
@@ -305,7 +313,11 @@ Begin
       Result := IDEVER_DELPHI104;
     22:
       Result := IDEVER_DELPHI11;
+    Else
+      Result := '';
   End;
+
+  // IMPORTANT! IN CASE NEW VERSIONS ARE ADDED, MODIFY THE MAXDELPHIVERSION CONSTANT ACCORDINGLY FOR PROPER REGISTRY ENTRY VALIDATION!
 End;
 
 //
@@ -316,6 +328,7 @@ Procedure TAEDelphiVersions.DiscoverVersions(Const inRegistry: TRegistry; Const 
 Var
   s: String;
   sl: TStringList;
+  vernumber: Integer;
 Begin
   sl := TStringList.Create;
   Try
@@ -336,7 +349,14 @@ Begin
         Continue;
 
       Try
-        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), Integer.Parse(s.Substring(0, s.IndexOf('.')))));
+        // Entries in the registry might be invalid keys (e.g. not created by Delphi installer)
+        // See a valid report at https://en.delphipraxis.net/topic/8086-ae-bdslauncher/?do=findComment&comment=68459
+        // To avoid an exception in this case, try to validate it
+
+        If Not Integer.TryParse(s.Substring(0, s.IndexOf('.')), vernumber) Or (vernumber < MINDELPHIVERSION) Or (vernumber > MAXDELPHIVERSION) Then
+          Continue;
+
+        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), vernumber));
       Finally
         inRegistry.CloseKey;
       End;
