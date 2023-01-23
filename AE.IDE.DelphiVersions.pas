@@ -13,11 +13,6 @@ Interface
 Uses System.SysUtils,  AE.DDEManager, AE.IDE.Versions, System.Win.Registry, System.Classes;
 
 Type
-  TAEDelphiDDEManager = Class(TAEDDEManager)
-  public
-    Procedure OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
-  End;
-
   TAEDelphiInstance = Class(TAEIDEInstance)
   strict protected
     Procedure InternalFindIDEWindow; Override;
@@ -27,8 +22,10 @@ Type
   TAEBorlandDelphiVersion = Class(TAEIDEVersion)
   strict private
     _ddeansimode: Boolean;
+    _ddediscoverytimeout: Cardinal;
     _ddeservice: String;
     _ddetopic: String;
+    Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
   strict protected
     Procedure InternalRefreshInstances; Override;
     Function InternalGetName: String; Override;
@@ -37,8 +34,9 @@ Type
     Property InternalDDETopic: String Read _ddetopic Write _ddetopic;
   public
     Class Function BDSRoot: String; Virtual;
-    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Override;
+    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDDEDiscoveryTimeout: Cardinal); ReIntroduce; Virtual;
     Property DDEANSIMode: Boolean Read _ddeansimode;
+    Property DDEDiscoveryTimeout: Cardinal Read _ddediscoverytimeout Write SetDDEDiscoveryTimeout;
     Property DDEService: String Read _ddeservice;
     Property DDETopic: String Read _ddetopic;
   End;
@@ -57,7 +55,7 @@ Type
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
-    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer); ReIntroduce; Override;
+    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDiscoveryTimeout: Cardinal); Override;
   End;
 
   TAEEmbarcaderoDelphiVersion = Class(TAECodegearDelphiVersion)
@@ -69,9 +67,14 @@ Type
 
   TAEDelphiVersions = Class(TAEIDEVersions)
   strict private
+    _ddediscoverytimeout: Cardinal;
     Procedure DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TAEDelphiVersionClass);
+    Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
   strict protected
     Procedure InternalRefreshInstalledVersions; Override;
+  public
+    Constructor Create(inOwner: TComponent); Override;
+    Property DDEDiscoveryTimeout: Cardinal Read _ddediscoverytimeout Write SetDDEDiscoveryTimeout;
   End;
 
   EAEDelphiVersionException = Class(Exception);
@@ -108,16 +111,6 @@ Begin
 End;
 
 //
-// TAEDelphiDDEManager
-//
-
-Procedure TAEDelphiDDEManager.OpenFile(Const inFileName: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal);
-Begin
-  Self.ExecuteCommand('[open("' + inFileName + '")]', inPID, inTimeoutInMs);
-End;
-
-
-//
 // TAEDelphiInstance
 //
 
@@ -144,14 +137,14 @@ End;
 
 Procedure TAEDelphiInstance.InternalOpenFile(Const inFileName: String; Const inTimeOutInMs: Cardinal = 5000);
 Var
-  ddemgr: TAEDelphiDDEManager;
+  ddemgr: TAEDDEManager;
   version: TAEBorlandDelphiVersion;
 Begin
   inherited;
 
   version := Self.Owner As TAEBorlandDelphiVersion;
 
-  ddemgr := TAEDelphiDDEManager.Create(version.DDEService, version.DDETopic, version.DDEANSIMode);
+  ddemgr := TAEDDEManager.Create(version.DDEService, version.DDETopic, version.DDEANSIMode, version.DDEDiscoveryTimeout);
   Try
     While Not ddemgr.ServerFound(Self.PID) Do
     Begin
@@ -162,7 +155,7 @@ Begin
       ddemgr.RefreshServers;
     End;
 
-    ddemgr.OpenFile(inFileName, Self.PID, inTimeOutInMs);
+    ddemgr.ExecuteCommand('[open("' + inFileName + '")]', Self.PID, inTimeOutInMs);
   Finally
     FreeAndNil(ddemgr);
   End;
@@ -180,11 +173,11 @@ End;
 Procedure TAEBorlandDelphiVersion.InternalRefreshInstances;
 Var
   pid: Cardinal;
-  ddemgr: TAEDelphiDDEManager;
+  ddemgr: TAEDDEManager;
 Begin
   inherited;
 
-  ddemgr := TAEDelphiDDEManager.Create(Self.DDEService, Self.DDETopic, Self.DDEANSIMode);
+  ddemgr := TAEDDEManager.Create(Self.DDEService, Self.DDETopic, Self.DDEANSIMode, Self.DDEDiscoveryTimeout);
   Try
     For pid In ddemgr.DDEServerPIDs Do
       If ProcessName(pid).ToLower = Self.ExecutablePath.ToLower Then
@@ -194,11 +187,22 @@ Begin
   End;
 End;
 
-Constructor TAEBorlandDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
+Procedure TAEBorlandDelphiVersion.SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
 Begin
-  inherited;
+  If inDDEDiscoveryTimeout = _ddediscoverytimeout Then
+    Exit;
+
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
+
+  Self.RefreshInstances;
+End;
+
+Constructor TAEBorlandDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDDEDiscoveryTimeout: Cardinal);
+Begin
+  inherited Create(inOwner, inExecutablePath, inVersionNumber);
 
   _ddeansimode := True;
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
   _ddeservice := 'delphi32';
   _ddetopic := 'system';
 end;
@@ -251,7 +255,7 @@ Begin
   Result := 'SOFTWARE\CodeGear\BDS';
 End;
 
-Constructor TAECodegearDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer);
+Constructor TAECodegearDelphiVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDiscoveryTimeout: Cardinal);
 Begin
   inherited;
 
@@ -324,6 +328,13 @@ End;
 // TAEDelphiVersions
 //
 
+Constructor TAEDelphiVersions.Create(inOwner: TComponent);
+Begin
+  inherited;
+
+  _ddediscoverytimeout := 1;
+End;
+
 Procedure TAEDelphiVersions.DiscoverVersions(Const inRegistry: TRegistry; Const inDelphiVersionClass: TAEDelphiVersionClass);
 Var
   s: String;
@@ -356,7 +367,7 @@ Begin
         If Not Integer.TryParse(s.Substring(0, s.IndexOf('.')), vernumber) Or (vernumber < MINDELPHIVERSION) Or (vernumber > MAXDELPHIVERSION) Then
           Continue;
 
-        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), vernumber));
+        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), vernumber, _ddediscoverytimeout));
       Finally
         inRegistry.CloseKey;
       End;
@@ -383,6 +394,19 @@ Begin
   Finally
     FreeAndNil(reg);
   End;
+End;
+
+Procedure TAEDelphiVersions.SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
+Var
+  ver: TAEIDEVersion;
+Begin
+  If inDDEDiscoveryTimeout = _ddediscoverytimeout Then
+    Exit;
+
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
+
+  For ver In Self.InstalledVersions Do
+    (ver As TAEBorlandDelphiVersion).DDEDiscoveryTimeout := inDDEDiscoveryTimeout;
 End;
 
 End.

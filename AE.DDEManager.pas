@@ -16,6 +16,7 @@ Type
   TAEDDEManager = Class
   strict private
     _ansimode: Boolean;
+    _discoverytimeout: Cardinal;
     _servers: TObjectDictionary<Cardinal, TList<HWND>>;
     _service: String;
     _topic: String;
@@ -27,7 +28,7 @@ Type
     Function GetDDEServerWindows(Const inPID: Cardinal): TArray<HWND>;
     Function GlobalLockString(Const inValue: String; Const inFlags: Cardinal): THandle;
   public
-    Constructor Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False); ReIntroduce;
+    Constructor Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False; Const inDiscoveryTimeout: Cardinal = 1); ReIntroduce;
     Destructor Destroy; Override;
     Procedure ExecuteCommand(Const inCommand: String; Const inPID: Cardinal; Const inTimeOutInMs: Cardinal = 5000);
     Procedure RefreshServers;
@@ -51,11 +52,12 @@ Begin
     Raise EAEDDEManagerException.Create('Process with PID ' + inPID.ToString + ' was not detected as a valid DDE target for service ' + _service + ', topic ' + _topic + '!');
 End;
 
-Constructor TAEDDEManager.Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False);
+Constructor TAEDDEManager.Create(Const inService, inTopic: String; Const inANSIMode: Boolean = False; Const inDiscoveryTimeout: Cardinal = 1);
 Begin
   inherited Create;
 
   _ansimode := inANSIMode;
+  _discoverytimeout := inDiscoveryTimeout;
   _servers := TObjectDictionary<Cardinal, TList<HWND>>.Create([doOwnsValues]);
   _service := inService;
   _topic := inTopic;
@@ -142,7 +144,7 @@ Begin
   End;
 End;
 
-Procedure TAEDDEManager.InternalExecuteCommand(Const inCommand: String; Const inWindowHandle: HWND; Const inTimeOutInMs: Cardinal);
+Procedure TAEDDEManager.InternalExecuteCommand(Const inCommand: String; Const inWindowHandle: HWND; Const inTimeOutInMs: Cardinal = 5000);
 Var
   serviceatom, topicatom: Word;
   commandhandle: THandle;
@@ -264,7 +266,7 @@ Begin
         RaiseLastOSError;
 
       Try
-        SendMessageTimeout(HWND_BROADCAST, WM_DDE_INITIATE, discoverer, Makelong(serviceatom, topicatom), SMTO_BLOCK, 1, @res);
+        SendMessageTimeout(HWND_BROADCAST, WM_DDE_INITIATE, discoverer, Makelong(serviceatom, topicatom), SMTO_BLOCK, _discoverytimeout, @res);
 
         While PeekMessage(msg, discoverer, 0, 0, PM_REMOVE) Do
         Begin

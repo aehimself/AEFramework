@@ -15,7 +15,7 @@ Uses AE.IDE.Versions, System.Classes, AE.DDEManager;
 Type
   TAEVSDDEManager = Class(TAEDDEManager)
   public
-    Constructor Create(Const inVersion: Integer);
+    Constructor Create(Const inVersion: Integer; Const inDiscoveryTimeout: Cardinal); ReIntroduce;
   End;
 
   TAEVSInstance = Class(TAEIDEInstance)
@@ -29,22 +29,31 @@ Type
   End;
 
   TAEVSVersion = Class(TAEIDEVersion)
+  strict private
+    _ddediscoverytimeout: Cardinal;
+    Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
   strict protected
     Function InternalGetName: String; Override;
     Procedure InternalRefreshInstances; Override;
+  public
+    Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDDEDiscoveryTimeout: Cardinal); ReIntroduce;
+    Property DDEDiscoveryTimeout: Cardinal Read _ddediscoverytimeout Write SetDDEDiscoveryTimeout;
   End;
 
   TAEVSVersions = Class(TAEIDEVersions)
   strict private
+    _ddediscoverytimeout: Cardinal;
     _vswhere: String;
     Procedure AddFromRegistry;
     Procedure AddFromVSWhere;
+    Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
     Procedure SetVSWhere(Const inVSWhereLocation: String);
     Function GetDOSOutput(Const inCommandLine: String): String;
   strict protected
     Procedure InternalRefreshInstalledVersions; Override;
   public
     Constructor Create(inOwner: TComponent); Override;
+    Property DDEDiscoveryTimeout: Cardinal Read _ddediscoverytimeout Write SetDDEDiscoveryTimeout;
     Property VSWhereExeLocation: String Read _vswhere Write SetVSWhere;
   End;
 
@@ -82,9 +91,9 @@ End;
 // TAEVSDDEManager
 //
 
-Constructor TAEVSDDEManager.Create(const inVersion: Integer);
+Constructor TAEVSDDEManager.Create(const inVersion: Integer; Const inDiscoveryTimeout: Cardinal);
 Begin
- inherited Create('VisualStudio.' + inVersion.ToString + '.0', 'system');
+ inherited Create('VisualStudio.' + inVersion.ToString + '.0', 'system', False, inDiscoveryTimeout);
 End;
 
 //
@@ -125,7 +134,7 @@ Var
 Begin
   inherited;
 
-  ddemgr := TAEVSDDEManager.Create(_versionnumber);
+  ddemgr := TAEVSDDEManager.Create(_versionnumber, (Self.Owner As TAEVSVersion).DDEDiscoveryTimeout);
   Try
     While Not ddemgr.ServerFound(Self.PID) Do
     Begin
@@ -145,6 +154,13 @@ End;
 //
 // TAEVSVersion
 //
+
+Constructor TAEVSVersion.Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDDEDiscoveryTimeout: Cardinal);
+Begin
+  inherited Create(inOwner, inExecutablePath, inVersionNumber);
+
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
+End;
 
 Function TAEVSVersion.InternalGetName: String;
 Begin
@@ -177,7 +193,7 @@ Var
   ddemgr: TAEVSDDEManager;
   pid: Cardinal;
 Begin
-  ddemgr := TAEVSDDEManager.Create(Self.VersionNumber);
+  ddemgr := TAEVSDDEManager.Create(Self.VersionNumber, _ddediscoverytimeout);
   Try
     For pid In ddemgr.DDEServerPIDs Do
       If ProcessName(pid).ToLower = Self.ExecutablePath.ToLower Then
@@ -185,6 +201,16 @@ Begin
   Finally
     FreeAndNil(ddemgr);
   End;
+End;
+
+Procedure TAEVSVersion.SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
+Begin
+  If inDDEDiscoveryTimeout = _ddediscoverytimeout Then
+    Exit;
+
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
+
+  Self.RefreshInstances;
 End;
 
 //
@@ -213,7 +239,7 @@ Begin
         Begin
           loc := IncludeTrailingPathDelimiter(reg.ReadString(s)) + 'Common7\IDE\devenv.exe';
           If FileExists(loc) Then
-            Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(s.Substring(0, s.IndexOf('.')))));
+            Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(s.Substring(0, s.IndexOf('.'))), _ddediscoverytimeout));
         End;
       Finally
         reg.CloseKey;
@@ -249,7 +275,7 @@ Begin
       ver := jo.GetValue('installationVersion').Value;
       loc := jo.GetValue('productPath').Value;
 
-      Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(ver.Substring(0, ver.IndexOf('.')))));
+      Self.AddVersion(TAEVSVersion.Create(Self, loc, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
     End;
   Finally
     FreeAndNil(json);
@@ -260,6 +286,7 @@ Constructor TAEVSVersions.Create(inOwner: TComponent);
 Begin
   inherited;
 
+  _ddediscoverytimeout := 1;
   _vswhere := '';
 End;
 
@@ -336,6 +363,19 @@ Begin
     Self.AddFromRegistry
   Else
     Self.AddFromVSWhere;
+End;
+
+Procedure TAEVSVersions.SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
+Var
+  ver: TAEIDEVersion;
+Begin
+  If inDDEDiscoveryTimeout = _ddediscoverytimeout Then
+    Exit;
+
+  _ddediscoverytimeout := inDDEDiscoveryTimeout;
+
+  For ver In Self.InstalledVersions Do
+    (ver As TAEVSVersion).DDEDiscoveryTimeout := inDDEDiscoveryTimeout;
 End;
 
 Procedure TAEVSVersions.SetVSWhere(const inVSWhereLocation: String);
