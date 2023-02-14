@@ -44,5 +44,5 @@ TAERandom is a pure pascal pseudorandom generator which can have multiple indivi
 #### AE.Misc.UnixTimestamp.pas
 Before I realized Delphi now natively supports UTC converted Unix timestamps I used this unit to do those conversions. Now it only calls the Delphi methods.
 
-### MNB.ExchangeRate.SoapService.pas and AE.MNB.ExchangeRates.pas
+#### MNB.ExchangeRate.SoapService.pas and AE.MNB.ExchangeRates.pas
 The first file is the WSDL import of the webservice of [Hungarian National Bank](https://www.mnb.hu/sajtoszoba/sajtokozlemenyek/2015-evi-sajtokozlemenyek/tajekoztatas-az-arfolyam-webservice-mukodeserol), the second one is an installable component which makes it easy to convert between the [supported](https://mnb.hu/arfolyamok) currencies.
