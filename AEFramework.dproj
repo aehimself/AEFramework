@@ -110,6 +110,9 @@
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="vcldb.dcp"/>
         <DCCReference Include="vclx.dcp"/>
+        <DCCReference Include="xmlrtl.dcp"/>
+        <DCCReference Include="soaprtl.dcp"/>
+        <DCCReference Include="inet.dcp"/>
         <DCCReference Include="AE.Comp.PageControl.pas"/>
         <DCCReference Include="AE.Comp.ThreadedTimer.pas"/>
         <DCCReference Include="AE.Misc.ByteUtils.pas"/>
@@ -138,6 +141,8 @@
         <DCCReference Include="AE.IDE.Versions.pas"/>
         <DCCReference Include="AE.IDE.VSVersions.pas"/>
         <DCCReference Include="AE.IDE.Versions.Consts.pas"/>
+        <DCCReference Include="AE.MNB.ExchangeRates.pas"/>
+        <DCCReference Include="MNB.ExchangeRate.SoapService.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

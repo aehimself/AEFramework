@@ -34,7 +34,10 @@ requires
   vclwinx,
   dbrtl,
   vcldb,
-  vclx;
+  vclx,
+  xmlrtl,
+  soaprtl,
+  inet;
 
 contains
   AE.Comp.PageControl in 'AE.Comp.PageControl.pas',
@@ -64,6 +67,8 @@ contains
   AE.IDE.DelphiVersions in 'AE.IDE.DelphiVersions.pas',
   AE.IDE.Versions in 'AE.IDE.Versions.pas',
   AE.IDE.VSVersions in 'AE.IDE.VSVersions.pas',
-  AE.IDE.Versions.Consts in 'AE.IDE.Versions.Consts.pas';
+  AE.IDE.Versions.Consts in 'AE.IDE.Versions.Consts.pas',
+  AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
+  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas';
 
 end.
