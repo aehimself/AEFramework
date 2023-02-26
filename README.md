@@ -46,3 +46,6 @@ Before I realized Delphi now natively supports UTC converted Unix timestamps I u
 
 #### MNB.ExchangeRate.SoapService.pas and AE.MNB.ExchangeRates.pas
 The first file is the WSDL import of the webservice of [Hungarian National Bank](https://www.mnb.hu/sajtoszoba/sajtokozlemenyek/2015-evi-sajtokozlemenyek/tajekoztatas-az-arfolyam-webservice-mukodeserol), the second one is an installable component which makes it easy to convert between the [supported](https://mnb.hu/arfolyamok) currencies.
+
+#### AE.VirtualKeyboard.*.pas
+A wrapper class to allow foreground or background threads to send key inputs to the active application, like actual keys were pressed on a keyboard. TAEVirtualKeyboard uses the actual keyboard layout and sends the text as unicode, while TAEVirtualEnUsKeyboard and TAEVirtualHuHuKeyboard translates special characters and sends the input as scan codes instead. These can be useful to type text to a RDP window, if the host system has no keyboard layout matching the clients.
