@@ -143,6 +143,10 @@
         <DCCReference Include="AE.IDE.Versions.Consts.pas"/>
         <DCCReference Include="AE.MNB.ExchangeRates.pas"/>
         <DCCReference Include="MNB.ExchangeRate.SoapService.pas"/>
+        <DCCReference Include="AE.VirtualKeyboard.HuHu.pas"/>
+        <DCCReference Include="AE.VirtualKeyboard.pas"/>
+        <DCCReference Include="AE.VirtualKeyboard.EnUs.pas"/>
+        <DCCReference Include="AE.VirtualKeyboard.Foreign.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
