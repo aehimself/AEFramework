@@ -26,11 +26,14 @@ TAEThreadedTimer is a modernized, drop-in replacement of Delphi's TTimer class b
 #### AE.Comp.Updater.*.pas
 TAEUpdater is a free to use application autoupdater. More information on [DelphiPraxis](https://en.delphipraxis.net/topic/7711-free-low-maintenance-update-mechanism).
 
-#### AE.DDEManager.pas
+### AE.DDEManager.pas
 As Delphi's TDDEClientConv is severely out-of-date and is not fully functional on newer releases, TAEDDEManager can take care of DDE server discovery and command execution.
 
-#### AE.IDE.*.pas
+### AE.IDE.*.pas
 TAEDelphiVersions and TVSVersions detect local Delphi and Visual Studio installations and their individual running instances. Via DDE a file can be opened in the IDE of a specific instance. You can read the struggle of creation on [DelphiPraxis](https://en.delphipraxis.net/topic/7955-how-to-open-a-file-in-the-already-running-ide).
+
+### AE.Misc.*pas
+A collection of helper methods and classes
 
 #### AE.Misc.ByteUtils.pas
 Helper class to compare, fully clear and deallocate, via ZLib compress Delphi TBytes arrays.
@@ -44,8 +47,11 @@ TAERandom is a pure pascal pseudorandom generator which can have multiple indivi
 #### AE.Misc.UnixTimestamp.pas
 Before I realized Delphi now natively supports UTC converted Unix timestamps I used this unit to do those conversions. Now it only calls the Delphi methods.
 
+### *MNB*.pas
+Access the webservice of Hungarian National Bank, get exchange rates and convert between currency values.
+
 #### MNB.ExchangeRate.SoapService.pas and AE.MNB.ExchangeRates.pas
 The first file is the WSDL import of the webservice of [Hungarian National Bank](https://www.mnb.hu/sajtoszoba/sajtokozlemenyek/2015-evi-sajtokozlemenyek/tajekoztatas-az-arfolyam-webservice-mukodeserol), the second one is an installable component which makes it easy to convert between the [supported](https://mnb.hu/arfolyamok) currencies.
 
-#### AE.VirtualKeyboard.*.pas
+### AE.VirtualKeyboard.*.pas
 A wrapper class to allow foreground or background threads to send key inputs to the active application, like actual keys were pressed on a keyboard. TAEVirtualKeyboard uses the actual keyboard layout and sends the text as unicode, while TAEVirtualEnUsKeyboard and TAEVirtualHuHuKeyboard translates special characters and sends the input as scan codes instead. These can be useful to type text to a RDP window, if the host system has no keyboard layout matching the clients.
