@@ -339,8 +339,13 @@ Begin
 
   If TFile.Exists(inFileName + OLDVERSIONEXT) Then
     TFile.Delete(inFileName + OLDVERSIONEXT);
+
   If TFile.Exists(inFileName) Then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
+
+  If Not TDirectory.Exists(ExtractFilePath(inFileName)) Then
+    TDirectory.CreateDirectory(ExtractFilePath(inFileName));
+
   Try
     fs := TFileStream.Create(inFileName, fmCreate);
     Try
