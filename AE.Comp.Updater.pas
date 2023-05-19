@@ -311,7 +311,7 @@ End;
 Procedure TAEUpdater.Update(Const inFileName: String; inVersion: UInt64 = 0);
 Var
   fs: TFileStream;
-  fileurl: String;
+  fileurl, filepath: String;
   product: TAEUpdaterProduct;
   version: TAEUpdaterProductFileVersion;
 Begin
@@ -343,8 +343,9 @@ Begin
   If TFile.Exists(inFileName) Then
     TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
 
-  If Not TDirectory.Exists(ExtractFilePath(inFileName)) Then
-    TDirectory.CreateDirectory(ExtractFilePath(inFileName));
+  filepath := ExtractFilePath(inFileName);
+  If Not filepath.IsEmpty And Not TDirectory.Exists(filepath) Then
+    TDirectory.CreateDirectory(filepath);
 
   Try
     fs := TFileStream.Create(inFileName, fmCreate);
