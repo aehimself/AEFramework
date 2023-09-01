@@ -73,6 +73,7 @@ contains
   AE.VirtualKeyboard.HuHu in 'AE.VirtualKeyboard.HuHu.pas',
   AE.VirtualKeyboard in 'AE.VirtualKeyboard.pas',
   AE.VirtualKeyboard.EnUs in 'AE.VirtualKeyboard.EnUs.pas',
-  AE.VirtualKeyboard.Foreign in 'AE.VirtualKeyboard.Foreign.pas';
+  AE.VirtualKeyboard.Foreign in 'AE.VirtualKeyboard.Foreign.pas',
+  AE.Comp.KeepMeAwake in 'AE.Comp.KeepMeAwake.pas';
 
 end.

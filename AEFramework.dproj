@@ -147,6 +147,7 @@
         <DCCReference Include="AE.VirtualKeyboard.pas"/>
         <DCCReference Include="AE.VirtualKeyboard.EnUs.pas"/>
         <DCCReference Include="AE.VirtualKeyboard.Foreign.pas"/>
+        <DCCReference Include="AE.Comp.KeepMeAwake.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
