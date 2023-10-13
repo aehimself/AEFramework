@@ -46,6 +46,7 @@ Type
     _vswhere: String;
     Procedure AddFromRegistry;
     Procedure AddFromVSWhere;
+    Procedure AddFromWMI;
     Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
     Procedure SetVSWhere(Const inVSWhereLocation: String);
     Function GetDOSOutput(Const inCommandLine: String): String;
@@ -59,7 +60,7 @@ Type
 
 Implementation
 
-Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON, AE.IDE.Versions.Consts;
+Uses Win.Registry, System.SysUtils, WinApi.Windows, System.JSON, AE.IDE.Versions.Consts, WinApi.ActiveX, System.Win.ComObj, System.Variants;
 
 Type
   PTOKEN_USER = ^TOKEN_USER;
@@ -230,7 +231,8 @@ Begin
       reg.RootKey := HKEY_LOCAL_MACHINE;
 
       If Not reg.OpenKey('SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7', False) And
-         Not reg.OpenKey('SOFTWARE\Microsoft\VisualStudio\SxS\VS7', False) Then Exit;
+         Not reg.OpenKey('SOFTWARE\Microsoft\VisualStudio\SxS\VS7', False) Then
+        Exit;
 
       Try
         reg.GetValueNames(sl);
@@ -279,6 +281,61 @@ Begin
     End;
   Finally
     FreeAndNil(json);
+  End;
+End;
+
+Procedure TAEVSVersions.AddFromWMI;
+Var
+  needuninit: Boolean;
+  wbemlocator, wmiservice, objectset, wbemobject: OLEVariant;
+  enum: IEnumvariant;
+  value: LongWord;
+  ver: String;
+Begin
+  Case CoInitializeEx(nil, COINIT_MULTITHREADED) Of
+    S_OK:
+      needuninit := True;
+    S_FALSE:
+      needuninit := True;
+    Else
+      needuninit := False;
+  End;
+
+  Try
+    wbemlocator := CreateOleObject('WbemScripting.SWbemLocator');
+    Try
+      wmiservice := wbemlocator.ConnectServer('', 'root\cimv2', '', '');
+      Try
+        objectset := wmiservice.ExecQuery('SELECT ProductLocation, Version from MSFT_VSInstance', 'WQL', 32);
+        Try
+          enum := IUnknown(objectset._NewEnum) As IEnumVariant;
+          Try
+            If enum.Next(1, wbemobject, value) = 0 Then
+            Try
+              If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
+              Begin
+                ver := wbemobject.Version;
+
+                Self.AddVersion(TAEVSVersion.Create(Self, wbemobject.ProductLocation, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
+              End;
+            Finally
+              VarClear(wbemobject);
+            End;
+          Finally
+            enum := nil;
+          End;
+        Finally
+          VarClear(objectset);
+        End;
+      Finally
+        VarClear(wmiservice);
+      End;
+    Finally
+      VarClear(wbemlocator);
+    End;
+  Finally
+    If needuninit Then
+      CoUnInitialize;
   End;
 End;
 
@@ -360,7 +417,12 @@ Begin
   inherited;
 
   If _vswhere.IsEmpty Then
-    Self.AddFromRegistry
+  Begin
+    Self.AddFromRegistry;
+
+    If Length(Self.InstalledVersions) = 0 Then
+      Self.AddFromWMI;
+  End
   Else
     Self.AddFromVSWhere;
 End;
