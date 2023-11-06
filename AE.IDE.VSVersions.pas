@@ -302,36 +302,46 @@ Begin
   End;
 
   Try
-    wbemlocator := CreateOleObject('WbemScripting.SWbemLocator');
     Try
-      wmiservice := wbemlocator.ConnectServer('', 'root\cimv2', '', '');
+      wbemlocator := CreateOleObject('WbemScripting.SWbemLocator');
       Try
-        objectset := wmiservice.ExecQuery('SELECT ProductLocation, Version from MSFT_VSInstance', 'WQL', 32);
+        wmiservice := wbemlocator.ConnectServer('', 'root\cimv2', '', '');
         Try
-          enum := IUnknown(objectset._NewEnum) As IEnumVariant;
+          objectset := wmiservice.ExecQuery('SELECT ProductLocation, Version from MSFT_VSInstance', 'WQL', 32);
           Try
-            If enum.Next(1, wbemobject, value) = 0 Then
+            enum := IUnknown(objectset._NewEnum) As IEnumVariant;
             Try
-              If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
-              Begin
-                ver := wbemobject.Version;
+              If enum.Next(1, wbemobject, value) = 0 Then
+              Try
+                If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
+                Begin
+                  ver := wbemobject.Version;
 
-                Self.AddVersion(TAEVSVersion.Create(Self, wbemobject.ProductLocation, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
+                  Self.AddVersion(TAEVSVersion.Create(Self, wbemobject.ProductLocation, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
+                End;
+              Finally
+                VarClear(wbemobject);
               End;
             Finally
-              VarClear(wbemobject);
+              enum := nil;
             End;
           Finally
-            enum := nil;
+            VarClear(objectset);
           End;
         Finally
-          VarClear(objectset);
+          VarClear(wmiservice);
         End;
       Finally
-        VarClear(wmiservice);
+        VarClear(wbemlocator);
       End;
-    Finally
-      VarClear(wbemlocator);
+    Except
+      On E:EOleException Do
+      Begin
+        // Swallowing exceptions is generally a bad idea. However, if the WMI provider is not installed an exception is thrown by the
+        // WMI service. For us though, that doesn't mean an actual error; it's simply not supported.
+      End
+      Else
+        Raise;
     End;
   Finally
     If needuninit Then
@@ -416,15 +426,14 @@ Procedure TAEVSVersions.InternalRefreshInstalledVersions;
 Begin
   inherited;
 
-  If _vswhere.IsEmpty Then
-  Begin
-    Self.AddFromRegistry;
-
-    If Length(Self.InstalledVersions) = 0 Then
-      Self.AddFromWMI;
-  End
-  Else
+  If Not _vswhere.IsEmpty Then
     Self.AddFromVSWhere;
+
+  If Length(Self.InstalledVersions) = 0 Then
+    Self.AddFromWMI;
+
+  If Length(Self.InstalledVersions) = 0 Then
+    Self.AddFromRegistry;
 End;
 
 Procedure TAEVSVersions.SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
