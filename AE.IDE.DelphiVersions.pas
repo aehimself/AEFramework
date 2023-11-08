@@ -85,7 +85,7 @@ Uses WinApi.Windows, AE.IDE.Versions.Consts;
 
 Const
  MINDELPHIVERSION = 3;
- MAXDELPHIVERSION = 22;
+ MAXDELPHIVERSION = 23;
 
 Function FindDelphiWindow(inHWND: HWND; inParam: LParam): Boolean; StdCall;
 Var
@@ -317,6 +317,8 @@ Begin
       Result := IDEVER_DELPHI104;
     22:
       Result := IDEVER_DELPHI11;
+    23:
+      Result := IDEVER_DELPHI12;
     Else
       Result := '';
   End;
