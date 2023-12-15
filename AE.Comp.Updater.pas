@@ -106,9 +106,14 @@ End;
 
 Class Procedure TAEUpdater.Cleanup(Const inLocalUpdateRoot: String = '');
 Var
-  fname: String;
+  fname, locupdate: String;
 Begin
-  For fname In TDirectory.GetFiles(inLocalUpdateRoot, '*' + OLDVERSIONEXT, TSearchOption.soAllDirectories) Do
+  If inLocalUpdateRoot.IsEmpty Then
+    locupdate := ExtractFilePath(ParamStr(0))
+  Else
+    locupdate := inLocalUpdateRoot;
+
+  For fname In TDirectory.GetFiles(locupdate, '*' + OLDVERSIONEXT, TSearchOption.soAllDirectories) Do
     TFile.Delete(fname);
 End;
 
@@ -122,9 +127,10 @@ Begin
   _filehashes := TDictionary<String, String>.Create;
   _fileprovider := nil;
   _lastmessagedate := 0;
-  _localupdateroot := '';
   _product := '';
   _updatefile := TAEUpdateFile.Create;
+
+  Self.LocalUpdateRoot := '';
 End;
 
 Destructor TAEUpdater.Destroy;
@@ -309,10 +315,10 @@ End;
 
 Procedure TAEUpdater.SetLocalUpdateRoot(const inLocalUpdateRoot: String);
 Begin
-  _localupdateroot := inLocalUpdateRoot;
-
-  If Not _localupdateroot.IsEmpty Then
-    _localupdateroot := IncludeTrailingPathDelimiter(_localupdateroot);
+  If inLocalUpdateRoot.IsEmpty Then
+    _localupdateroot := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))
+  Else
+    _localupdateroot := IncludeTrailingPathDelimiter(inLocalUpdateRoot);
 End;
 
 Procedure TAEUpdater.SetProduct(Const inProduct: String);
