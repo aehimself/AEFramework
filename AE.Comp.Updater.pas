@@ -23,11 +23,13 @@ Type
     _filehashes: TDictionary<String, String>;
     _fileprovider: TAEUpdaterFileProvider;
     _lastmessagedate: UInt64;
+    _localupdateroot: String;
     _product: String;
     _updatefile: TAEUpdateFile;
     Procedure CheckFileProvider;
     Procedure InternalCheckForUpdates;
     Procedure SetFileHash(Const inFileName, inFileHash: String);
+    Procedure SetLocalUpdateRoot(Const inLocalUpdateRoot: String);
     Procedure SetProduct(Const inProduct: String);
     Function ChannelVisible(Const inChannel: TAEUpdaterChannel): Boolean;
     Function DownloadFile(Const inURL: String; Const outStream: TStream): Boolean;
@@ -38,11 +40,11 @@ Type
     Function GetUpdateableFiles: TArray<String>;
     Function GetUpdateableFileVersions(Const inFileName: String): TArray<UInt64>;
   public
-    Class Procedure Cleanup;
-    Class Procedure Rollback(Const inFileName: String);
+    Class Procedure Cleanup(Const inLocalUpdateRoot: String = '');
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
     Procedure CheckForUpdates;
+    Procedure Rollback(Const inFileName: String);
     Procedure Update(Const inFileName: String; inVersion: UInt64 = 0);
     Property ActualProduct: TAEUpdaterProduct Read GetActualProduct;
     Property Channel: TAEUpdaterChannel Read _channel Write _channel;
@@ -50,6 +52,7 @@ Type
     Property FileHashes: TArray<String> Read GetFileHashes;
     Property LastMessageDate: UInt64 Read _lastmessagedate Write _lastmessagedate;
     Function LoadUpdateFile: Boolean;
+    Property LocalUpdateRoot: String Read _localupdateroot Write SetLocalUpdateRoot;
     Property Messages: TArray<UInt64> Read GetMessages;
     Property UpdateableFiles: TArray<String> Read GetUpdateableFiles;
     Property UpdateableFileVersions[Const inFileName: String]: TArray<UInt64> Read GetUpdateableFileVersions;
@@ -101,11 +104,11 @@ Begin
     Raise EAEUpdaterException.Create('File provider is not assigned!');
 End;
 
-Class Procedure TAEUpdater.Cleanup;
+Class Procedure TAEUpdater.Cleanup(Const inLocalUpdateRoot: String = '');
 Var
   fname: String;
 Begin
-  For fname In TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), '*' + OLDVERSIONEXT, TSearchOption.soAllDirectories) Do
+  For fname In TDirectory.GetFiles(inLocalUpdateRoot, '*' + OLDVERSIONEXT, TSearchOption.soAllDirectories) Do
     TFile.Delete(fname);
 End;
 
@@ -118,15 +121,17 @@ Begin
   _channel := aucProduction;
   _filehashes := TDictionary<String, String>.Create;
   _fileprovider := nil;
-  _updatefile := TAEUpdateFile.Create;
+  _lastmessagedate := 0;
+  _localupdateroot := '';
   _product := '';
+  _updatefile := TAEUpdateFile.Create;
 End;
 
 Destructor TAEUpdater.Destroy;
 Begin
   FreeAndNil(_availablemessages);
   FreeAndNil(_availableupdates);
-  FreeANdNil(_filehashes);
+  FreeAndNil(_filehashes);
   FreeAndNil(_updatefile);
 
   inherited;
@@ -170,15 +175,15 @@ Begin
   End;
 End;
 
-Class Procedure TAEUpdater.Rollback(Const inFileName: String);
+Procedure TAEUpdater.Rollback(Const inFileName: String);
 Begin
-  If Not TFile.Exists(inFileName + OLDVERSIONEXT) Then
+  If Not TFile.Exists(_localupdateroot + inFileName + OLDVERSIONEXT) Then
     Exit;
 
-  If TFile.Exists(inFileName) Then
-    TFile.Delete(inFileName);
+  If TFile.Exists(_localupdateroot + inFileName) Then
+    TFile.Delete(_localupdateroot + inFileName);
 
-  TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
+  TFile.Move(_localupdateroot + inFileName + OLDVERSIONEXT, _localupdateroot + inFileName);
 End;
 
 Function TAEUpdater.GetActualProduct: TAEUpdaterProduct;
@@ -244,12 +249,12 @@ Begin
   For fname In product.ProductFiles Do
   Begin
     pfile := product.ProductFile[fname];
-    fexists := TFile.Exists(fname);
+    fexists := TFile.Exists(_localupdateroot + fname);
 
     If Not fexists And pfile.Optional Then
       Continue;
 
-    fver := FileVersion(fname);
+    fver := FileVersion(_localupdateroot + fname);
 
     For a In pfile.Versions Do
     Begin
@@ -302,6 +307,14 @@ Begin
     _filehashes.Remove(inFileName);
 End;
 
+Procedure TAEUpdater.SetLocalUpdateRoot(const inLocalUpdateRoot: String);
+Begin
+  _localupdateroot := inLocalUpdateRoot;
+
+  If Not _localupdateroot.IsEmpty Then
+    _localupdateroot := IncludeTrailingPathDelimiter(_localupdateroot);
+End;
+
 Procedure TAEUpdater.SetProduct(Const inProduct: String);
 Begin
   _product := inProduct;
@@ -337,21 +350,21 @@ Begin
   // - Archive file name of the version
   fileurl := _fileprovider.UpdateRoot + version.RelativeArchiveFileName('/');
 
-  If TFile.Exists(inFileName + OLDVERSIONEXT) Then
-    TFile.Delete(inFileName + OLDVERSIONEXT);
+  If TFile.Exists(_localupdateroot + inFileName + OLDVERSIONEXT) Then
+    TFile.Delete(_localupdateroot + inFileName + OLDVERSIONEXT);
 
-  If TFile.Exists(inFileName) Then
-    TFile.Move(inFileName, inFileName + OLDVERSIONEXT);
+  If TFile.Exists(_localupdateroot + inFileName) Then
+    TFile.Move(_localupdateroot + inFileName, _localupdateroot + inFileName + OLDVERSIONEXT);
 
   filepath := ExtractFilePath(inFileName);
-  If Not filepath.IsEmpty And Not TDirectory.Exists(filepath) Then
-    TDirectory.CreateDirectory(filepath);
+  If Not filepath.IsEmpty And Not TDirectory.Exists(_localupdateroot + filepath) Then
+    TDirectory.CreateDirectory(_localupdateroot + filepath);
 
   Try
-    fs := TFileStream.Create(inFileName, fmCreate);
+    fs := TFileStream.Create(_localupdateroot + inFileName, fmCreate);
     Try
       If Not DownloadFile(fileurl, fs) Then
-        TFile.Move(inFileName + OLDVERSIONEXT, inFileName);
+        TFile.Move(_localupdateroot + inFileName + OLDVERSIONEXT, _localupdateroot + inFileName);
     Finally
       fs.Free;
     End;
