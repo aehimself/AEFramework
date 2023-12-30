@@ -1,4 +1,4 @@
-{
+﻿{
   AE Framework © 2022 by Akos Eigler is licensed under CC BY 4.0.
   To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
 
@@ -47,7 +47,7 @@ Type
 
 Implementation
 
-Uses System.IOUtils, AE.Misc.ByteUtils, System.Classes;
+Uses System.IOUtils, AE.Helper.TBytes, System.Classes;
 
 Procedure TAEApplicationSettings.InternalClear;
 Begin
@@ -93,7 +93,7 @@ Begin
 
   Result := TFile.ReadAllBytes(_settingsfilename);
   If _compressed Then
-    Result := Decompress(Result);
+    Result.Decompress;
 End;
 
 Procedure TAEApplicationSettings.Load;
@@ -190,9 +190,9 @@ Begin
     TDirectory.CreateDirectory(dir);
 
   If _compressed Then
-    TFile.WriteAllBytes(_settingsfilename, Compress(inBytes))
-  Else
-    TFile.WriteAllBytes(_settingsfilename, inBytes);
+    inBytes.Compress;
+
+  TFile.WriteAllBytes(_settingsfilename, inBytes);
   If Not _destroying And Not _loading Then
     Self.Load;
 End;
