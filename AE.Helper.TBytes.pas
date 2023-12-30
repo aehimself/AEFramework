@@ -147,7 +147,7 @@ Begin
   tmp := inBytes.Clone;
 
   If inCompress Then
-    tmp := inBytes.Clone;
+    tmp.Compress;
 
   Result := TNetEncoding.Base64.EncodeBytesToString(tmp).Replace(sLineBreak, '').Replace('=', '');
 End;
