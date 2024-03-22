@@ -311,7 +311,7 @@ Begin
           Try
             enum := IUnknown(objectset._NewEnum) As IEnumVariant;
             Try
-              If enum.Next(1, wbemobject, value) = 0 Then
+              While enum.Next(1, wbemobject, value) = 0 Do
               Try
                 If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
                 Begin

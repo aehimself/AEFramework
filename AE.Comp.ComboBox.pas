@@ -10,25 +10,23 @@ Unit AE.Comp.ComboBox;
 
 Interface
 
-Uses Vcl.StdCtrls, System.Generics.Collections, System.Classes, Vcl.ExtCtrls,
-  WinApi.Messages;
+Uses Vcl.StdCtrls, System.Generics.Collections, System.Classes, WinApi.Messages, WinApi.Windows;
 
 Type
   TAEComboBox = Class(TComboBox)
   strict private
     _changecalled: Boolean;
     _closeupchange: Boolean;
-    _closeupchangetimer: TTimer;
     _dropdownchange: Boolean;
     _itemcache: TList<String>;
-    _refreshcachetimer: TTimer;
-    Procedure CloseUpChangeTimerTimer(Sender: TObject);
-    Procedure RefreshCacheTimerTimer(Sender: TObject);
+    _timerwindow: HWnd;
     Procedure CBADDSTRING(Var Msg: TMessage); Message CB_ADDSTRING;
     Procedure CBINSERTSTRING(Var Msg: TMessage); Message CB_INSERTSTRING;
     Procedure CBDELETESTRING(Var Msg: TMessage); Message CB_DELETESTRING;
     Procedure CBRESETCONTENT(Var Msg: TMessage); Message CB_RESETCONTENT;
     Procedure CBSETITEMDATA(Var Msg: TMessage); Message CB_SETITEMDATA;
+    Procedure ResetTimer(Const inTimerID: Integer);
+    Procedure TimerWindowProc(Var inMessage: TMessage);
   protected
     Procedure Change; Override;
     Procedure CloseUp; Override;
@@ -43,46 +41,45 @@ Type
 
 Implementation
 
-Uses System.SysUtils, WinApi.Windows, Vcl.Consts;
+Uses System.SysUtils, Vcl.Consts;
+
+Const
+  TIMEREVENT_CLOSEUPCHANGE = 1;
+  TIMEREVENT_REFRESHCACHE = 2;
 
 Procedure TAEComboBox.CBADDSTRING(Var Msg: TMessage);
 Begin
   inherited;
 
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Enabled := True;
+  ResetTimer(TIMEREVENT_REFRESHCACHE);
 End;
 
 Procedure TAEComboBox.CBDELETESTRING(Var Msg: TMessage);
 Begin
   inherited;
 
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Enabled := True;
+  ResetTimer(TIMEREVENT_REFRESHCACHE);
 End;
 
 Procedure TAEComboBox.CBINSERTSTRING(Var Msg: TMessage);
 Begin
   inherited;
 
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Enabled := True;
+  ResetTimer(TIMEREVENT_REFRESHCACHE);
 End;
 
 Procedure TAEComboBox.CBRESETCONTENT(Var Msg: TMessage);
 Begin
   inherited;
 
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Enabled := True;
+  ResetTimer(TIMEREVENT_REFRESHCACHE);
 End;
 
 Procedure TAEComboBox.CBSETITEMDATA(Var Msg: TMessage);
 Begin
   inherited;
 
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Enabled := True;
+  ResetTimer(TIMEREVENT_REFRESHCACHE);
 End;
 
 Procedure TAEComboBox.Change;
@@ -127,13 +124,7 @@ Begin
   inherited;
 
   If Self.Style = csDropDown Then
-    _closeupchangetimer.Enabled := True;
-End;
-
-Procedure TAEComboBox.CloseUpChangeTimerTimer(Sender: TObject);
-Begin
-  _closeupchangetimer.Enabled := False;
-  _closeupchange := False;
+    ResetTimer(TIMEREVENT_CLOSEUPCHANGE);
 End;
 
 Constructor TAEComboBox.Create(AOwner: TComponent);
@@ -146,24 +137,18 @@ Begin
 
   _closeupchange := False;
 
-  _closeupchangetimer := TTimer.Create(Self);
-  _closeupchangetimer.Enabled := False;
-  _closeupchangetimer.Interval := 100;
-  _closeupchangetimer.OnTimer := CloseUpChangeTimerTimer;
-
   _dropdownchange := False;
 
   _itemcache := TList<String>.Create;
 
-  _refreshcachetimer := TTimer.Create(Self);
-  _refreshcachetimer.Enabled := False;
-  _refreshcachetimer.Interval := 100;
-  _refreshcachetimer.OnTimer := RefreshCacheTimerTimer;
+  _timerwindow := AllocateHWnd(TimerWindowProc);
 End;
 
 Destructor TAEComboBox.Destroy;
 Begin
   FreeAndNil(_itemcache);
+
+  DeallocateHWnd(_timerwindow);
 
   inherited;
 End;
@@ -175,19 +160,12 @@ Begin
   _dropdownchange := True;
 End;
 
-Procedure TAEComboBox.RefreshCacheTimerTimer(Sender: TObject);
-Var
-  s: String;
+Procedure TAEComboBox.ResetTimer(Const inTimerID: Integer);
 Begin
-  _refreshcachetimer.Enabled := False;
+  KillTimer(_timerwindow, inTimerID);
 
-  _itemcache.Clear;
-
-  If Self.Style = csDropDown Then
-    For s In Self.Items Do
-      _itemcache.Add(s.ToLower)
-  Else
-    _itemcache.Pack;
+  If SetTimer(_timerwindow, inTimerID, 100, nil) = 0 Then
+    Raise EOutOfResources.Create(SNoTimers);
 End;
 
 Procedure TAEComboBox.Select;
@@ -200,6 +178,35 @@ Begin
     If Not _changecalled Then
       Self.Change;
   End;
+End;
+
+Procedure TAEComboBox.TimerWindowProc(var inMessage: TMessage);
+Var
+  s: String;
+Begin
+  If inMessage.Msg = WM_TIMER Then
+  Begin
+    KillTimer(_timerwindow, inMessage.WParam);
+
+    Case inMessage.WParam Of
+      TIMEREVENT_CLOSEUPCHANGE:
+        _closeupchange := False;
+      TIMEREVENT_REFRESHCACHE:
+      Begin
+        _itemcache.Clear;
+
+        If Self.Style = csDropDown Then
+          For s In Self.Items Do
+            _itemcache.Add(s.ToLower)
+        Else
+          _itemcache.Pack;
+      End;
+    End;
+
+    inMessage.Result := 0;
+  End
+  Else
+    DefWindowProc(_timerwindow, inMessage.Msg, inMessage.wParam, inMessage.lParam);
 End;
 
 End.

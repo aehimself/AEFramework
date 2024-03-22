@@ -333,6 +333,7 @@ Var
   fileurl, filepath: String;
   product: TAEUpdaterProduct;
   version: TAEUpdaterProductFileVersion;
+  lfilever: TFileVersion;
 Begin
   CheckFileProvider;
 
@@ -374,6 +375,11 @@ Begin
     Finally
       fs.Free;
     End;
+
+    lfilever := FileVersion(_localupdateroot + inFileName);
+
+    If CompareText(lfilever.MD5Hash, version.FileHash) <> 0 Then
+      Raise EAEUpdaterException.Create('Hash verification failed for downloaded file ' + inFileName + '!');
   Except
     On E:Exception Do
     Begin
