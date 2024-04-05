@@ -366,7 +366,8 @@ Begin
         // See a valid report at https://en.delphipraxis.net/topic/8086-ae-bdslauncher/?do=findComment&comment=68459
         // To avoid an exception in this case, try to validate it
 
-        If Not Integer.TryParse(s.Substring(0, s.IndexOf('.')), vernumber) Or (vernumber < MINDELPHIVERSION) Or (vernumber > MAXDELPHIVERSION) Then
+        If Not Integer.TryParse(s.Substring(0, s.IndexOf('.')), vernumber) Or (vernumber < MINDELPHIVERSION) Or (vernumber > MAXDELPHIVERSION) Or
+           Not inRegistry.ValueExists('App') Then
           Continue;
 
         Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), vernumber, _ddediscoverytimeout));
