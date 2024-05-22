@@ -1,4 +1,4 @@
-{
+﻿{
   AE Framework © 2022 by Akos Eigler is licensed under CC BY 4.0.
   To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
 
@@ -22,10 +22,13 @@ Type
 Const
   POLLINTERVAL = 100;
 
+{$IFDEF MSWINDOWS}
 Procedure CustomMessagePump;
+{$ENDIF}
 
 Implementation
 
+{$IFDEF MSWINDOWS}
 Uses WinApi.Windows;
 
 Procedure CustomMessagePump;
@@ -42,5 +45,6 @@ Begin
     DispatchMessage(msg);
   End;
 End;
+{$ENDIF}
 
 End.

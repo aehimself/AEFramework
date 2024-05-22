@@ -1,0 +1,54 @@
+﻿package AEFramework_R;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'AE Framework Runtime Package'}
+{$LIBSUFFIX AUTO}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  xmlrtl,
+  soaprtl,
+  dbrtl,
+  inet;
+
+contains
+  OSVersion in '3rdParty\OSVersion.pas',
+  AE.Application.Helper in 'AE.Application.Helper.pas',
+  AE.Application.Setting in 'AE.Application.Setting.pas',
+  AE.Application.Settings in 'AE.Application.Settings.pas',
+  AE.Application.Application in 'AE.Application.Application.pas',
+  AE.Application.Console in 'AE.Application.Console.pas',
+  AE.Application.Engine in 'AE.Application.Engine.pas',
+  AE.Helper.TBytes in 'AE.Helper.TBytes.pas',
+  AE.Misc.Random in 'AE.Misc.Random.pas',
+  AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
+  AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
+  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas';
+
+end.

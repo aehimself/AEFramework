@@ -1,4 +1,4 @@
-﻿package AEFramework;
+﻿package AEFramework_D;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -25,7 +25,8 @@
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'AE Framework'}
+{$DESCRIPTION 'AE Framework Design Time package'}
+{$LIBSUFFIX AUTO}
 {$IMPLICITBUILD ON}
 
 requires
@@ -42,19 +43,10 @@ requires
 contains
   AE.Comp.PageControl in 'AE.Comp.PageControl.pas',
   AE.Comp.ThreadedTimer in 'AE.Comp.ThreadedTimer.pas',
-  AE.Helper.TBytes in 'AE.Helper.TBytes.pas',
   AE.Misc.FileUtils in 'AE.Misc.FileUtils.pas',
-  AE.Misc.Random in 'AE.Misc.Random.pas',
-  AE.Application.Application in 'AE.Application.Application.pas',
-  AE.Application.Console in 'AE.Application.Console.pas',
-  AE.Application.Engine in 'AE.Application.Engine.pas',
-  AE.Application.Helper in 'AE.Application.Helper.pas',
-  AE.Application.Settings in 'AE.Application.Settings.pas',
   AE.Comp.ComboBox in 'AE.Comp.ComboBox.pas',
   AE.Comp.HeaderMenuItem in 'AE.Comp.HeaderMenuItem.pas',
-  OSVersion in '3rdParty\OSVersion.pas',
   AEFrameworkReg in 'AEFrameworkReg.pas',
-  AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
   AE.Comp.Updater in 'AE.Comp.Updater.pas',
   AE.Comp.DBGrid in 'AE.Comp.DBGrid.pas',
   AE.Comp.Updater.FileProvider in 'AE.Comp.Updater.FileProvider.pas',
@@ -62,14 +54,11 @@ contains
   AE.Comp.Updater.FileProvider.Flat in 'AE.Comp.Updater.FileProvider.Flat.pas',
   AE.Comp.Updater.FileProvider.Custom in 'AE.Comp.Updater.FileProvider.Custom.pas',
   AE.Comp.Updater.UpdateFile in 'AE.Comp.Updater.UpdateFile.pas',
-  AE.Application.Setting in 'AE.Application.Setting.pas',
   AE.DDEManager in 'AE.DDEManager.pas',
   AE.IDE.DelphiVersions in 'AE.IDE.DelphiVersions.pas',
   AE.IDE.Versions in 'AE.IDE.Versions.pas',
   AE.IDE.VSVersions in 'AE.IDE.VSVersions.pas',
   AE.IDE.Versions.Consts in 'AE.IDE.Versions.Consts.pas',
-  AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
-  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas',
   AE.VirtualKeyboard.HuHu in 'AE.VirtualKeyboard.HuHu.pas',
   AE.VirtualKeyboard in 'AE.VirtualKeyboard.pas',
   AE.VirtualKeyboard.EnUs in 'AE.VirtualKeyboard.EnUs.pas',

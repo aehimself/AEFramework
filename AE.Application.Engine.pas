@@ -1,4 +1,4 @@
-{
+﻿{
   AE Framework © 2022 by Akos Eigler is licensed under CC BY 4.0.
   To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
 
@@ -63,7 +63,9 @@ Type
 
 Implementation
 
+{$IFDEF MSWINDOWS}
 Uses WinApi.Windows;
+{$ENDIF}
 
 //
 // TAEApplicationThread
@@ -72,6 +74,7 @@ Uses WinApi.Windows;
 Constructor TAEApplicationThread.Create;
 Begin
   inherited Create(True);
+
   Self.FreeOnTerminate := False;
   _afterwork := nil;
   _beforework := nil;
@@ -83,13 +86,16 @@ Procedure TAEApplicationThread.Execute;
 Begin
   If Assigned(_beforework) Then
     _beforework;
+
   Try
     If Terminated Then
       Exit;
+
     Repeat
       Try
         If Assigned(_workcycle) Then
           _workcycle;
+
         Sleep(5);
       Except
         On E: Exception Do
@@ -111,33 +117,36 @@ End;
 
 Procedure TAEApplicationEngine.AfterWork;
 Begin
-{$IFDEF DEBUG}
+  {$IFDEF DEBUG}
   Log('Terminate signal received.');
-{$ENDIF}
+  {$ENDIF}
 end;
 
 Procedure TAEApplicationEngine.BeforeWork;
 Begin
-{$IFDEF DEBUG}
-  Log('Sarted with ID: ' + EngineThread.ThreadID.ToString + ', Handle: ' +
-    EngineThread.Handle.ToString);
-{$ENDIF}
+  {$IFDEF DEBUG}
+  Log('Sarted with ID: ' + EngineThread.ThreadID.ToString {$IFDEF MSWINDOWS} + ', Handle: ' + EngineThread.Handle.ToString {$ENDIF});
+  {$ENDIF}
 End;
 
 Constructor TAEApplicationEngine.Create(inLogProcedure: TLogProcedure);
 Begin
   inherited Create;
+
   If Not Assigned(inLogProcedure) Then
     Raise EArgumentException.Create('LogProcedure can not be empty!');
+
   _log := inLogProcedure;
   Self.EngineThread := TAEApplicationThread.Create;
   Self.EngineThread.AfterWork := Self.AfterWork;
   Self.EngineThread.BeforeWork := Self.BeforeWork;
   Self.EngineThread.WorkCycle := Self.WorkCycle;
   Self.EngineThread.ThreadError := Self.ThreadError;
-{$IFDEF DEBUG}
+
+  {$IFDEF DEBUG}
   TThread.NameThreadForDebugging(Self.ClassName, EngineThread.ThreadID);
-{$ENDIF}
+  {$ENDIF}
+
   Self.Creating;
 End;
 
@@ -153,8 +162,10 @@ Begin
     Self.GracefullyEnd(0);
     FreeAndNil(EngineThread);
   End;
+
   _log := nil;
   Self.Destroying;
+
   inherited;
 End;
 
@@ -165,8 +176,12 @@ End;
 
 Function TAEApplicationEngine.EndedExecution(inTimeout: Cardinal): Boolean;
 Begin
+  {$IFDEF MSWINDOWS}
   Result := WaitForSingleObject(Self.EngineThread.Handle, inTimeout)
     = WAIT_OBJECT_0;
+  {$ELSE}
+  Result := Self.EngineThread.Finished;
+  {$ENDIF}
 End;
 
 Function TAEApplicationEngine.GetTerminated: Boolean;
@@ -185,8 +200,10 @@ Var
 Begin
   If Not Self.EngineThread.Terminated Then
     Self.EngineThread.Terminate;
+
   If Self.EngineThread.Suspended Then
     Self.EngineThread.Start;
+
   If inTimeout = 0 Then
   Begin
     Self.EngineThread.WaitFor;
@@ -196,14 +213,18 @@ Begin
   Begin
     totalwaited := 0;
     Result := False;
+
     Repeat
       If Self.EndedExecution(POLLINTERVAL) Then
         Result := True
       Else
         totalwaited := totalwaited + POLLINTERVAL;
     Until (Result) Or (totalwaited >= inTimeout);
+
     If Not Result Then
+    {$IFDEF MSWINDOWS}
       TerminateThread(Self.EngineThread.Handle, 0);
+    {$ENDIF}
   End;
 End;
 
@@ -246,7 +267,9 @@ End;
 
 Procedure TAEApplicationEngine.WorkCycle;
 Begin
+  {$IFDEF MSWINDOWS}
   CustomMessagePump;
+  {$ENDIF}
 End;
 
 End.

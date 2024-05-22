@@ -1,4 +1,4 @@
-{
+﻿{
   AE Framework © 2022 by Akos Eigler is licensed under CC BY 4.0.
   To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
 
@@ -10,12 +10,15 @@ Unit AE.Application.Console;
 
 Interface
 
+{$IFDEF MSWINDOWS}
 Uses AE.Application.Application;
 
 Procedure StartWithConsole(inAEApplicationClass: TAEApplicationClass);
+{$ENDIF}
 
 Implementation
 
+{$IFDEF MSWINDOWS}
 Uses WinApi.Windows, System.SysUtils, AE.Application.Helper;
 
 Type
@@ -178,5 +181,6 @@ Begin
     DeleteCriticalSection(LogCS);
   End;
 End;
+{$ENDIF}
 
 End.

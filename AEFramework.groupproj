@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{9C01C9D4-B8C4-466B-A320-F8D37162E1A7}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="AEFramework_R.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="AEFramework_D.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="AEFramework_R">
+        <MSBuild Projects="AEFramework_R.dproj"/>
+    </Target>
+    <Target Name="AEFramework_R:Clean">
+        <MSBuild Projects="AEFramework_R.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="AEFramework_R:Make">
+        <MSBuild Projects="AEFramework_R.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="AEFramework_D">
+        <MSBuild Projects="AEFramework_D.dproj"/>
+    </Target>
+    <Target Name="AEFramework_D:Clean">
+        <MSBuild Projects="AEFramework_D.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="AEFramework_D:Make">
+        <MSBuild Projects="AEFramework_D.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="AEFramework_R;AEFramework_D"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="AEFramework_R:Clean;AEFramework_D:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="AEFramework_R:Make;AEFramework_D:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

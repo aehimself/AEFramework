@@ -9,6 +9,7 @@ Unit OSVersion;
 
 Interface
 
+{$IFDEF MSWINDOWS}
 Uses Windows, SysUtils, TlHelp32;
 
 Type
@@ -18,9 +19,11 @@ Type
 Function GetOSVersionInfo(Var Info: TOSVersionInfoEx): Boolean;
 Function IsWow64: Boolean;
 Function GetOSVersionText: String;
+{$ENDIF}
 
 Implementation
 
+{$IFDEF MSWINDOWS}
 Function GetOSVersionInfo(Var Info: TOSVersionInfoEx): Boolean;
 Begin
   FillChar(Info, SizeOf(TOSVersionInfoEx), 0);
@@ -332,4 +335,5 @@ begin
 {$IFDEF WIN32} If IsWow64 Then {$ENDIF} Result := Result + ' x64';
 end;
 
+{$ENDIF}
 end.
