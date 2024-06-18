@@ -10,16 +10,18 @@ Unit AE.Comp.KeepMeAwake;
 
 Interface
 
-Uses System.Classes, Vcl.ExtCtrls, WinApi.Windows;
+Uses System.Classes, Vcl.ExtCtrls, WinApi.Windows, System.SysUtils;
 
 Type
   TAEKeepMeAwakeMode = ( kamNone, kamMouseMove, kamMouseWheel, kamKeyPress, kamMouseClick );
 
   TAEKeepMeAwakeModeChangeEvent = Procedure(Sender: TObject; Const inNewMode: TAEKeepMeAwakeMode) Of Object;
+  TAEKeepMeAwakeErrorEvent = Procedure(Sender: TObject; Const inException: Exception; Var outDeactivate: Boolean) Of Object;
 
   TAEKeepMeAwake = Class(TComponent)
   strict private
     _interval: Integer;
+    _onerror: TAEKeepMeAwakeErrorEvent;
     _onmodechange: TAEKeepMeAwakeModeChangeEvent;
     _prevmode: TAEKeepMeAwakeMode;
     _timer: TTimer;
@@ -39,12 +41,11 @@ Type
   published
     Property Active: Boolean Read GetActive Write SetActive;
     Property Interval: Integer Read _interval Write _interval;
+    Property OnError: TAEKeepMeAwakeErrorEvent Read _onerror Write _onerror;
     Property OnKeepMeAwakeModeChanged: TAEKeepMeAwakeModeChangeEvent Read _onmodechange Write _onmodechange;
   End;
 
 Implementation
-
-Uses System.SysUtils;
 
 Constructor TAEKeepMeAwake.Create(Owner: TComponent);
 Begin
@@ -53,6 +54,7 @@ Begin
   // Default interval: 4 minutes (240 seconds)
   _interval := 240;
 
+  _onerror := nil;
   _onmodechange := nil;
 
   _prevmode := kamNone;
@@ -225,26 +227,53 @@ End;
 Procedure TAEKeepMeAwake.TimerTimer(Sender: TObject);
 Var
   idle: Integer;
+  deactivate: Boolean;
 Begin
-  idle := SecondsIdle;
+  Try
+    idle := SecondsIdle;
 
-  If idle < _interval Then
-    Exit;
+    If idle < _interval Then
+      Exit;
 
-  Case _prevmode Of
-    kamNone:
-      If Not InternalDetectKeepMeAwakeMethod(idle) Then
-        Self.Active := False;
-    kamMouseMove:
-      InternalMoveMouse;
-    kamMouseWheel:
-      InternalScrollMouseWheel;
-    kamKeyPress:
-      InternalPressKey;
-    kamMouseClick:
-      InternalClickMouse;
-    Else
-      Raise ENotImplemented.Create('Keep me awake method isn''t implemented yet!');
+    Case _prevmode Of
+      kamNone:
+        If Not InternalDetectKeepMeAwakeMethod(idle) Then
+          Self.Active := False;
+      kamMouseMove:
+        InternalMoveMouse;
+      kamMouseWheel:
+        InternalScrollMouseWheel;
+      kamKeyPress:
+        InternalPressKey;
+      kamMouseClick:
+        InternalClickMouse;
+      Else
+        Raise ENotImplemented.Create('Keep me awake method isn''t implemented yet!');
+    End;
+
+    If (SecondsIdle >= idle) And (_prevmode <> kamNone) Then
+    Begin
+      _prevmode := kamNone;
+
+      If Assigned(_onmodechange) Then
+        _onmodechange(Self, _prevmode);
+    End;
+  Except
+    On E:Exception Do
+      If Assigned(_onerror) Then
+      Begin
+        deactivate := True;
+
+        _onerror(Self, E, deactivate);
+
+        _timer.Enabled := Not deactivate;
+      End
+      Else
+      Begin
+        _timer.Enabled := False;
+
+        Raise;
+      End;
   End;
 End;
 
