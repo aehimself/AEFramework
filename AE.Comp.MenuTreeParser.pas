@@ -18,6 +18,7 @@ Type
   public
     Constructor Create(AOwner: TComponent); Override;
     Destructor Destroy; Override;
+  published
     Property Location: String Read _location Write SetLocation;
     Property LocationFolders: TArray<String> Read _locationfolders;
     Property LocationMenuItems: TArray<String> Read _locationmenuitems;
