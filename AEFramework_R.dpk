@@ -49,6 +49,7 @@ contains
   AE.Misc.Random in 'AE.Misc.Random.pas',
   AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
   AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
-  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas';
+  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas',
+  AE.Comp.MenuTreeParser in 'AE.Comp.MenuTreeParser.pas';
 
 end.

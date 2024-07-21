@@ -114,6 +114,7 @@
         <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
         <DCCReference Include="AE.MNB.ExchangeRates.pas"/>
         <DCCReference Include="MNB.ExchangeRate.SoapService.pas"/>
+        <DCCReference Include="AE.Comp.MenuTreeParser.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
