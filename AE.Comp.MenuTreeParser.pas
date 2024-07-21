@@ -82,7 +82,7 @@ Begin
 
         If itemname.Contains(_separator) Then
         Begin
-          itemname := itemname.Substring(0, itemname.IndexOf(_separator, inLocation.Length));
+          itemname := itemname.Substring(0, itemname.IndexOf(_separator));
 
           If Not folders.Contains(itemname) Then
             folders.Add(itemname);
