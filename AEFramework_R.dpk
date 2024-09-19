@@ -50,6 +50,8 @@ contains
   AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
   AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
   MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas',
-  AE.Comp.MenuTreeParser in 'AE.Comp.MenuTreeParser.pas';
+  AE.Comp.MenuTreeParser in 'AE.Comp.MenuTreeParser.pas',
+  AE.DLL.Loader in 'AE.DLL.Loader.pas',
+  AE.DLL.AutoLoader in 'AE.DLL.AutoLoader.pas';
 
 end.
