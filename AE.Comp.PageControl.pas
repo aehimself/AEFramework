@@ -135,6 +135,14 @@ Begin
     If Self.TabPosition In [tpTop, tpBottom] Then
       R.Right := R.Right - GetButtonCloseRect(0).Width;
 
+    {$IF CompilerVersion > 35}
+    // Delphi 12.2 centers the text by default if styles are active BUT only if they are active.
+    // Let's restore the old functionality
+
+    If newflags And DT_CENTER <> 0 Then
+      newflags := newflags - DT_CENTER;
+    {$ENDIF}
+
     If newflags And DT_WORD_ELLIPSIS = 0 Then
       newflags := newflags Or DT_WORD_ELLIPSIS;
 
