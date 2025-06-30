@@ -40,10 +40,28 @@ Type
     Property PID: Cardinal Read _pid;
   End;
 
+  TAEIDEExecutableVersion = Class
+  strict private
+    _build: Word;
+    _major: Word;
+    _minor: Word;
+    _release: Word;
+    _string: String;
+  public
+    Constructor Create(Const inMajorVersion, inMinorVersion, inReleaseVersion, inBuildVersion: Word); ReIntroduce;
+    Property AsString: String Read _string;
+    Property Build: Word Read _build;
+    Property Major: Word Read _major;
+    Property Minor: Word Read _minor;
+    Property Release: Word Read _release;
+ End;
+
   TAEIDEVersion = Class(TComponent)
   strict private
     _abortnewinstance: Boolean;
+    _edition: String;
     _executablepath: String;
+    _executableversion: TAEIDEExecutableVersion;
     _instances: TObjectList<TAEIDEInstance>;
     _name: String;
     _versionnumber: Integer;
@@ -51,6 +69,8 @@ Type
   strict protected
     Procedure AddInstance(Const inInstance: TAEIDEInstance);
     Procedure InternalRefreshInstances; Virtual;
+    Function InternalGetEdition: String; Virtual;
+    Function InternalGetExecutableVersion: TAEIDEExecutableVersion; Virtual;
     Function InternalGetName: String; Virtual;
     Function InternalNewIDEInstance(Const inParams: String): Cardinal; Virtual;
     Function ProcessName(Const inPID: Cardinal): String;
@@ -63,7 +83,9 @@ Type
     Function InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
     Function IsRunning: Boolean;
     Function NewIDEInstance(Const inParams: String = ''): TAEIDEInstance;
+    Property Edition: String Read _edition;
     Property ExecutablePath: String Read _executablepath;
+    Property ExecutableVersion: TAEIDEExecutableVersion Read _executableversion;
     Property Instances: TArray<TAEIDEInstance> Read GetInstances;
     Property Name: String Read _name;
     Property VersionNumber: Integer Read _versionnumber;
@@ -99,7 +121,7 @@ Type
 
 Implementation
 
-Uses WinApi.Messages, WinApi.PsAPI;
+Uses WinApi.Messages, WinApi.PsAPI, AE.Misc.FileUtils;
 
 //
 // TDelphiInstance
@@ -216,6 +238,19 @@ Begin
 End;
 
 //
+// TAEExecutableVersion
+//
+
+Constructor TAEIDEExecutableVersion.Create(Const inMajorVersion, inMinorVersion, inReleaseVersion, inBuildVersion: Word);
+Begin
+  _build := inBuildVersion;
+  _major := inMajorVersion;
+  _minor := inMinorVersion;
+  _release := inReleaseVersion;
+  _string := Format('%d.%d.%d.%d', [_major, _minor, _release, _build]);
+End;
+
+//
 // TIDEVersion
 //
 
@@ -233,7 +268,10 @@ Procedure TAEIDEVersion.AfterConstruction;
 Begin
   inherited;
 
+  _edition := Self.InternalGetEdition;
+  _executableversion := Self.InternalGetExecutableVersion;
   _name := Self.InternalGetName;
+
   If _name.IsEmpty Then
     _name := 'IDE v' + _versionnumber.ToString;
 
@@ -245,7 +283,9 @@ Begin
   inherited Create(inOwner);
 
   _abortnewinstance := False;
+  _edition := '';
   _executablepath := inExecutablePath.Trim;
+  _executableversion := nil;
   _instances := TObjectList<TAEIDEInstance>.Create(True);
   _name := '';
   _versionnumber := inVersionNumber;
@@ -280,6 +320,20 @@ End;
 Procedure TAEIDEVersion.InternalRefreshInstances;
 Begin
   // Dummy
+End;
+
+Function TAEIDEVersion.InternalGetEdition: String;
+Begin
+  Result := '';
+End;
+
+Function TAEIDEVersion.InternalGetExecutableVersion: TAEIDEExecutableVersion;
+Var
+  fver: TFileVersion;
+Begin
+  fver := FileVersion(Self.ExecutablePath);
+
+  Result := TAEIDEExecutableVersion.Create(fver.MajorVersion, fver.MinorVersion, fver.ReleaseVersion, fver.BuildNumber);
 End;
 
 Function TAEIDEVersion.InternalGetName: String;

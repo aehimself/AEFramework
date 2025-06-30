@@ -28,6 +28,7 @@ Type
     Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
   strict protected
     Procedure InternalRefreshInstances; Override;
+    Function InternalGetEdition: String; Override;
     Function InternalGetName: String; Override;
     Property InternalDDEANSIMode: Boolean Read _ddeansimode Write _ddeansimode;
     Property InternalDDEService: String Read _ddeservice Write _ddeservice;
@@ -81,7 +82,7 @@ Type
 
 Implementation
 
-Uses WinApi.Windows, AE.IDE.Versions.Consts;
+Uses WinApi.Windows, AE.IDE.Versions.Consts, AE.Misc.FileUtils;
 
 Const
  MINDELPHIVERSION = 3;
@@ -206,6 +207,11 @@ Begin
   _ddeservice := 'delphi32';
   _ddetopic := 'system';
 end;
+
+Function TAEBorlandDelphiVersion.InternalGetEdition: String;
+Begin
+  Result := FileInfo(Self.ExecutablePath, 'ProductName');
+End;
 
 Function TAEBorlandDelphiVersion.InternalGetName: String;
 Begin
