@@ -294,6 +294,7 @@ End;
 Destructor TAEIDEVersion.Destroy;
 Begin
   FreeAndNil(_instances);
+  FreeAndNil(_executableversion);
 
   inherited;
 End;
