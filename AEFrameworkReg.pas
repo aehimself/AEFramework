@@ -16,11 +16,11 @@ Implementation
 
 Uses System.Classes, AE.Comp.HeaderMenuItem, AE.Comp.PageControl, AE.Comp.ComboBox, AE.Comp.ThreadedTimer, AE.Comp.Updater,
      AE.Comp.DBGrid, AE.Comp.Updater.FileProvider.HTTP, AE.Comp.Updater.FileProvider.Flat, AE.Comp.Updater.FileProvider.Custom,
-     AE.MNB.ExchangeRates, AE.Comp.KeepMeAwake, AE.Comp.MenuTreeParser;
+     AE.MNB.ExchangeRates, AE.Comp.KeepMeAwake, AE.Comp.MenuTreeParser, AE.Comp.TagEditor;
 
 Procedure Register;
 Begin
-  RegisterComponents('AE Components', [TAEHeaderMenuItem, TAEPageControl, TAEComboBox, TAEThreadedTimer, TAEDBGrid, TAEMNBExchangeRates, TAEKeepMeAwake, TAEMenuTreeParser]);
+  RegisterComponents('AE Components', [TAEHeaderMenuItem, TAEPageControl, TAEComboBox, TAEThreadedTimer, TAEDBGrid, TAEMNBExchangeRates, TAEKeepMeAwake, TAEMenuTreeParser, TAETagEditor]);
   RegisterComponents('AE Updater components', [TAEUpdater, TAEUpdaterHTTPFileProvider, TAEUpdaterFlatFileProvider, TAEUpdaterCustomFileProvider]);
 
   // RegisterComponentEditor(TMyComponent, TMyEditor);
