@@ -103,20 +103,20 @@
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="inet.dcp"/>
         <DCCReference Include="3rdParty\OSVersion.pas"/>
-        <DCCReference Include="AE.Application.Helper.pas"/>
-        <DCCReference Include="AE.Application.Setting.pas"/>
-        <DCCReference Include="AE.Application.Settings.pas"/>
-        <DCCReference Include="AE.Application.Application.pas"/>
-        <DCCReference Include="AE.Application.Console.pas"/>
-        <DCCReference Include="AE.Application.Engine.pas"/>
-        <DCCReference Include="AE.Helper.TBytes.pas"/>
-        <DCCReference Include="AE.Misc.Random.pas"/>
-        <DCCReference Include="AE.Misc.UnixTimestamp.pas"/>
-        <DCCReference Include="AE.MNB.ExchangeRates.pas"/>
-        <DCCReference Include="MNB.ExchangeRate.SoapService.pas"/>
-        <DCCReference Include="AE.Comp.MenuTreeParser.pas"/>
-        <DCCReference Include="AE.DLL.Loader.pas"/>
-        <DCCReference Include="AE.DLL.AutoLoader.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Helper.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Setting.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Settings.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Application.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Console.pas"/>
+        <DCCReference Include="AE.Application\AE.Application.Engine.pas"/>
+        <DCCReference Include="AE.Misc\AE.Helper.TBytes.pas"/>
+        <DCCReference Include="AE.Misc\AE.Misc.Random.pas"/>
+        <DCCReference Include="AE.Misc\AE.Misc.UnixTimestamp.pas"/>
+        <DCCReference Include="AE.Misc\AE.MNB.ExchangeRates.pas"/>
+        <DCCReference Include="AE.Misc\MNB.ExchangeRate.SoapService.pas"/>
+        <DCCReference Include="AE.Comp\AE.Comp.MenuTreeParser.pas"/>
+        <DCCReference Include="AE.Misc\AE.DLL.Loader.pas"/>
+        <DCCReference Include="AE.Misc\AE.DLL.AutoLoader.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -39,19 +39,19 @@ requires
 
 contains
   OSVersion in '3rdParty\OSVersion.pas',
-  AE.Application.Helper in 'AE.Application.Helper.pas',
-  AE.Application.Setting in 'AE.Application.Setting.pas',
-  AE.Application.Settings in 'AE.Application.Settings.pas',
-  AE.Application.Application in 'AE.Application.Application.pas',
-  AE.Application.Console in 'AE.Application.Console.pas',
-  AE.Application.Engine in 'AE.Application.Engine.pas',
-  AE.Helper.TBytes in 'AE.Helper.TBytes.pas',
-  AE.Misc.Random in 'AE.Misc.Random.pas',
-  AE.Misc.UnixTimestamp in 'AE.Misc.UnixTimestamp.pas',
-  AE.MNB.ExchangeRates in 'AE.MNB.ExchangeRates.pas',
-  MNB.ExchangeRate.SoapService in 'MNB.ExchangeRate.SoapService.pas',
-  AE.Comp.MenuTreeParser in 'AE.Comp.MenuTreeParser.pas',
-  AE.DLL.Loader in 'AE.DLL.Loader.pas',
-  AE.DLL.AutoLoader in 'AE.DLL.AutoLoader.pas';
+  AE.Application.Helper in 'AE.Application\AE.Application.Helper.pas',
+  AE.Application.Setting in 'AE.Application\AE.Application.Setting.pas',
+  AE.Application.Settings in 'AE.Application\AE.Application.Settings.pas',
+  AE.Application.Application in 'AE.Application\AE.Application.Application.pas',
+  AE.Application.Console in 'AE.Application\AE.Application.Console.pas',
+  AE.Application.Engine in 'AE.Application\AE.Application.Engine.pas',
+  AE.Helper.TBytes in 'AE.Misc\AE.Helper.TBytes.pas',
+  AE.Misc.Random in 'AE.Misc\AE.Misc.Random.pas',
+  AE.Misc.UnixTimestamp in 'AE.Misc\AE.Misc.UnixTimestamp.pas',
+  AE.MNB.ExchangeRates in 'AE.Misc\AE.MNB.ExchangeRates.pas',
+  MNB.ExchangeRate.SoapService in 'AE.Misc\MNB.ExchangeRate.SoapService.pas',
+  AE.Comp.MenuTreeParser in 'AE.Comp\AE.Comp.MenuTreeParser.pas',
+  AE.DLL.Loader in 'AE.Misc\AE.DLL.Loader.pas',
+  AE.DLL.AutoLoader in 'AE.Misc\AE.DLL.AutoLoader.pas';
 
 end.
