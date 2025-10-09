@@ -2,10 +2,10 @@
 
 AEFramework is a set of helper units / components which I use for most of my projects. Since they might be of interest of others it is now hosted on GitHub. Feel free to use, modify under [Creative Commons Attribution 4.0 International](http://creativecommons.org/licenses/by/4.0/)
 
-## AE.Application.*.pas
+## AE.Application
 These classes can be used to quickly create a service / console application.
 
-## AE.Comp.*.pas
+## AE.Comp
 Fixes and enhancements for existing VCL controls. These controls fully support Delphi VCL styles.
 
 #### AE.Comp.ComboBox.pas
@@ -17,26 +17,35 @@ Contains TAEDBGrid with automatic column width detection, proper mouse wheel and
 #### AE.Comp.HeaderMenuItem.pas
 TAEHeaderMenuItem is always disabled, acts as a separator in Popup / main menus. Born because of a topic on [DelphiPraxis](https://en.delphipraxis.net/topic/5397-tpopupmenu-with-group-headers).
 
+#### AE.Comp.KeepMeAwake.pas
+TAEKeepMeAwake can be used to prevent a computers console or RDP session to go idle.
+
+#### AE.Comp.MenuTreeParser.pas
+TAEMenuTreeParser is a helper component to parse menu trees. Based on the current location it can list subfolders and menu items separately.
+
 #### AE.Comp.PageControl.pas
 TAEPageControl adds drag-and-drop sheet reordering and close buttons on tabs.
+
+#### AE.Comp.TagEditor.pas
+TAETagEditor is an extremely barebone tag editor component. More information on [DelphiPraxis](https://en.delphipraxis.net/topic/14451-very-simple-tag-editor-component).
 
 #### AE.Comp.ThreadedTimer.pas
 TAEThreadedTimer is a modernized, drop-in replacement of Delphi's TTimer class based on a [StackExchange](https://codereview.stackexchange.com/questions/153819/ttimerthread-threaded-timer-class) StackExchange. More information is on [DelphiPraxis](https://en.delphipraxis.net/topic/6621-tthreadedtimer).
 
-#### AE.Comp.Updater.*.pas
-TAEUpdater is a free to use application autoupdater. More information on [DelphiPraxis](https://en.delphipraxis.net/topic/7711-free-low-maintenance-update-mechanism).
-
-## AE.DDEManager.pas
-As Delphi's TDDEClientConv is severely out-of-date and is not fully functional on newer releases, TAEDDEManager can take care of DDE server discovery and command execution.
-
-## AE.IDE.*.pas
+## AE.IDE
 TAEDelphiVersions and TVSVersions detect local Delphi and Visual Studio installations and their individual running instances. Via DDE a file can be opened in the IDE of a specific instance. You can read the struggle of creation on [DelphiPraxis](https://en.delphipraxis.net/topic/7955-how-to-open-a-file-in-the-already-running-ide).
 
-## AE.Misc.*pas
-A collection of helper methods and classes
+## AE.Misc
+Miscellaneous unit to make life easier.
 
-#### AE.Misc.ByteUtils.pas
-Helper class to compare, fully clear and deallocate, via ZLib compress Delphi TBytes arrays.
+#### AE.DDEManager.pas
+As Delphi's TDDEClientConv is severely out-of-date and is not fully functional on newer releases, TAEDDEManager can take care of DDE server discovery and command execution.
+
+#### AE.DLL.Loader.pas, AE.DLL.AutoLoader.pas
+Helper classes to make interacting with DLL files less painful. TAEDLLLoader requires the descendant class to loading manually while TAEDLLAutoLoader discovers and loads all exported methods.
+
+#### AE.Helper.TBytes.pas
+Helper class to compare, fully clear and deallocate, via ZLib (de)compress, stringify and manipulate Delphi TBytes arrays.
 
 #### AE.Misc.FileUtils.pas
 Extracts specific version information from a given executable, like version number, product name, etc.
@@ -47,11 +56,11 @@ TAERandom is a pure pascal pseudorandom generator which can have multiple indivi
 #### AE.Misc.UnixTimestamp.pas
 Before I realized Delphi now natively supports UTC converted Unix timestamps I used this unit to do those conversions. Now it only calls the Delphi methods.
 
-## \*MNB*.pas
-Access the webservice of Hungarian National Bank, get exchange rates and convert between currency values.
-
 #### MNB.ExchangeRate.SoapService.pas and AE.MNB.ExchangeRates.pas
-The first file is the WSDL import of the webservice of [Hungarian National Bank](https://www.mnb.hu/sajtoszoba/sajtokozlemenyek/2015-evi-sajtokozlemenyek/tajekoztatas-az-arfolyam-webservice-mukodeserol), the second one is an installable component which makes it easy to convert between the [supported](https://mnb.hu/arfolyamok) currencies.
+Access the webservice of Hungarian National Bank, get exchange rates and convert between currency values. The first file is the WSDL import of the webservice of [Hungarian National Bank](https://www.mnb.hu/sajtoszoba/sajtokozlemenyek/2015-evi-sajtokozlemenyek/tajekoztatas-az-arfolyam-webservice-mukodeserol), the second one is an installable component which makes it easy to convert between the [supported](https://mnb.hu/arfolyamok) currencies.
+
+## AE.Updater
+TAEUpdater is a free to use application autoupdater. More information on [DelphiPraxis](https://en.delphipraxis.net/topic/7711-free-low-maintenance-update-mechanism).
 
 ## AE.VirtualKeyboard.*.pas
 A wrapper class to allow foreground or background threads to send key inputs to the active application, like actual keys were pressed on a keyboard. TAEVirtualKeyboard uses the actual keyboard layout and sends the text as unicode, while TAEVirtualEnUsKeyboard and TAEVirtualHuHuKeyboard translates special characters and sends the input as scan codes instead. These can be useful to type text to a RDP window, if the host system has no keyboard layout matching the clients.
