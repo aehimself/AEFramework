@@ -47,10 +47,8 @@ Type
     Procedure AddFromRegistry;
     Procedure AddFromVSWhere;
     Procedure AddFromWMI;
-    Procedure DoAddFromWMI(Const inWMIService: OLEVariant);
     Procedure SetDDEDiscoveryTimeout(Const inDDEDiscoveryTimeout: Cardinal);
     Procedure SetVSWhere(Const inVSWhereLocation: String);
-    Function DoesWMIClassExist(Const inWMIService: OLEVariant): Boolean;
     Function GetDOSOutput(Const inCommandLine: String): String;
   strict protected
     Procedure InternalRefreshInstalledVersions; Override;
@@ -289,7 +287,10 @@ End;
 Procedure TAEVSVersions.AddFromWMI;
 Var
   needuninit: Boolean;
-  wbemlocator, wmiservice: OLEVariant;
+  wbemlocator, wmiservice, objectset, wbemobject: OLEVariant;
+  enum: IEnumvariant;
+  value: LongWord;
+  ver: String;
 Begin
   Case CoInitializeEx(nil, COINIT_MULTITHREADED) Of
     S_OK:
@@ -301,81 +302,50 @@ Begin
   End;
 
   Try
-    wbemlocator := CreateOleObject('WbemScripting.SWbemLocator');
     Try
-      wmiservice := wbemlocator.ConnectServer('', 'root\cimv2', '', '');
+      wbemlocator := CreateOleObject('WbemScripting.SWbemLocator');
       Try
-        If Not DoesWMIClassExist(wmiservice) Then
-          Exit;
+        wmiservice := wbemlocator.ConnectServer('', 'root\cimv2', '', '');
+        Try
+          objectset := wmiservice.ExecQuery('SELECT ProductLocation, Version from MSFT_VSInstance', 'WQL', 32);
+          Try
+            enum := IUnknown(objectset._NewEnum) As IEnumVariant;
+            Try
+              While enum.Next(1, wbemobject, value) = 0 Do
+              Try
+                If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
+                Begin
+                  ver := wbemobject.Version;
 
-        DoAddFromWMI(wmiservice);
+                  Self.AddVersion(TAEVSVersion.Create(Self, wbemobject.ProductLocation, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
+                End;
+              Finally
+                VarClear(wbemobject);
+              End;
+            Finally
+              enum := nil;
+            End;
+          Finally
+            VarClear(objectset);
+          End;
+        Finally
+          VarClear(wmiservice);
+        End;
       Finally
-        VarClear(wmiservice);
+        VarClear(wbemlocator);
       End;
-    Finally
-      VarClear(wbemlocator);
+    Except
+      On E:EOleException Do
+      Begin
+        // Swallowing exceptions is generally a bad idea. However, if the WMI provider is not installed an exception is thrown by the
+        // WMI service. For us though, that doesn't mean an actual error; it's simply not supported.
+      End
+      Else
+        Raise;
     End;
   Finally
     If needuninit Then
       CoUnInitialize;
-  End;
-End;
-
-Procedure TAEVSVersions.DoAddFromWMI(Const inWMIService: OLEVariant);
-Var
-  objectset, wbemobject: OLEVariant;
-  enum: IEnumvariant;
-  value: LongWord;
-  ver: String;
-Begin
-  objectset := inWMIService.ExecQuery('SELECT ProductLocation, Version from MSFT_VSInstance', 'WQL', 32);
-  Try
-    enum := IUnknown(objectset._NewEnum) As IEnumVariant;
-    Try
-      While enum.Next(1, wbemobject, value) = 0 Do
-      Try
-        If (wbemobject.ProductLocation <> null) And FileExists(wbemobject.ProductLocation) And (wbemobject.Version <> null) Then
-        Begin
-          ver := wbemobject.Version;
-
-          Self.AddVersion(TAEVSVersion.Create(Self, wbemobject.ProductLocation, Integer.Parse(ver.Substring(0, ver.IndexOf('.'))), _ddediscoverytimeout));
-        End;
-      Finally
-        VarClear(wbemobject);
-      End;
-    Finally
-      enum := nil;
-    End;
-  Finally
-    VarClear(objectset);
-  End;
-End;
-
-Function TAEVSVersions.DoesWMIClassExist(Const inWMIService: OLEVariant): Boolean;
-Var
-  wmiclasses, wbemobject: OLEVariant;
-  enum: IEnumvariant;
-  value: LongWord;
-Begin
-  Result := False;
-
-  wmiclasses := inWMIService.SubclassesOf;
-
-  enum := IUnknown(wmiclasses._newEnum) As IEnumVariant;
-  Try
-    While enum.Next(1, wbemobject, value) = 0 Do
-    Try
-      If LowerCase(wbemobject.Path_.Class) = 'msft_vsinstance' Then
-      Begin
-        Result := True;
-
-        Break;
-      End;
-    Finally
-      VarClear(wbemobject);
-    End;
-  Finally
-    enum := nil;
   End;
 End;
 
