@@ -28,6 +28,8 @@ Type
     Procedure SetFileBytes(Const inBytes: TBytes);
     Function GetFileBytes: TBytes;
   strict protected
+    Procedure AfterLoad; Virtual;
+    Procedure AfterSave; Virtual;
     Procedure BeforeLoad(Var outByteArray: TBytes); Virtual;
     Procedure BeforeSave(Var outByteArray: TBytes); Virtual;
     Procedure InternalClear; Override;
@@ -54,6 +56,16 @@ Begin
   _loaded := False;
   If Not _loading Then
     _settingsmigrated := False;
+End;
+
+Procedure TAEApplicationSettings.AfterLoad;
+Begin
+  // Dummy
+End;
+
+Procedure TAEApplicationSettings.AfterSave;
+Begin
+  // Dummy
 End;
 
 Procedure TAEApplicationSettings.BeforeDestruction;
@@ -133,6 +145,8 @@ Begin
   Finally
     _loading := False;
   End;
+
+  Self.AfterLoad;
 End;
 
 Class Function TAEApplicationSettings.New(Const inFileLocation: TSettingsFileLocation; Const inCompression: TSettingsFileCompresion = scAutoDetect): TAEApplicationSettings;
@@ -179,6 +193,8 @@ Begin
   Finally
     FreeAndNil(json);
   End;
+
+  Self.AfterSave;
 End;
 
 Procedure TAEApplicationSettings.SetFileBytes(Const inBytes: TBytes);
