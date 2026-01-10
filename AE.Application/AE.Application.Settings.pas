@@ -60,12 +60,12 @@ End;
 
 Procedure TAEApplicationSettings.AfterLoad;
 Begin
-  // Dummy
+  Self.ClearChanged;
 End;
 
 Procedure TAEApplicationSettings.AfterSave;
 Begin
-  // Dummy
+  Self.ClearChanged;
 End;
 
 Procedure TAEApplicationSettings.BeforeDestruction;
@@ -169,6 +169,9 @@ Var
   json: TJSONObject;
   tb: TBytes;
 Begin
+  If Not Self.Changed Then
+    Exit;
+
   json := Self.AsJSON;
   If Assigned(json) Then
   Try

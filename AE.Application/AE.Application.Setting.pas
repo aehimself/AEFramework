@@ -14,16 +14,24 @@ Uses System.JSON;
 
 Type
   TAEApplicationSetting = Class
+  strict private
+    _changed: Boolean;
+    Function GetChanged: Boolean;
   strict protected
     Procedure InternalClear; Virtual;
+    Procedure InternalClearChanged; Virtual;
     Procedure SetAsJSON(Const inJSON: TJSONObject); Virtual;
+    Procedure SetChanged;
+    Function InternalGetChanged: Boolean; Virtual;
     Function GetAsJSON: TJSONObject; Virtual;
   public
     Class Function NewFromJSON(Const inJSON: TJSONValue): TAEApplicationSetting;
     Constructor Create; ReIntroduce; Virtual;
     Procedure AfterConstruction; Override;
     Procedure Clear;
+    Procedure ClearChanged;
     Property AsJSON: TJSONObject Read GetAsJSON Write SetAsJSON;
+    Property Changed: Boolean Read GetChanged;
   End;
 
 Implementation
@@ -42,6 +50,13 @@ Begin
   Self.InternalClear;
 End;
 
+Procedure TAEApplicationSetting.ClearChanged;
+Begin
+  Self.InternalClearChanged;
+
+  _changed := False;
+End;
+
 Constructor TAEApplicationSetting.Create;
 Begin
   inherited;
@@ -52,9 +67,24 @@ Begin
   Result := TJSONObject.Create;
 End;
 
+Function TAEApplicationSetting.GetChanged: Boolean;
+Begin
+  Result := _changed Or Self.InternalGetChanged;
+End;
+
 Procedure TAEApplicationSetting.InternalClear;
 Begin
+  _changed := False;
+End;
+
+Procedure TAEApplicationSetting.InternalClearChanged;
+Begin
   // Dummy
+End;
+
+Function TAEApplicationSetting.InternalGetChanged: Boolean;
+Begin
+  Result := False;
 End;
 
 Class Function TAEApplicationSetting.NewFromJSON(Const inJSON: TJSONValue): TAEApplicationSetting;
@@ -74,6 +104,11 @@ End;
 Procedure TAEApplicationSetting.SetAsJSON(Const inJSON: TJSONObject);
 Begin
   Self.InternalClear;
+End;
+
+Procedure TAEApplicationSetting.SetChanged;
+Begin
+  _changed := True;
 End;
 
 End.
