@@ -19,6 +19,7 @@ Type
 
   TAEApplicationSettings = Class(TAEApplicationSetting)
   strict private
+    _checkchangedwhensaving: Boolean;
     _destroying: Boolean;
     _loaded: Boolean;
     _loading: Boolean;
@@ -41,6 +42,7 @@ Type
     Procedure BeforeDestruction; Override;
     Procedure Load;
     Procedure Save;
+    Property CheckChangedWhenSaving: Boolean Read _checkchangedwhensaving Write _checkchangedwhensaving;
     Property Compressed: Boolean Read _compressed Write _compressed;
     Property FileBytes: TBytes Read GetFileBytes Write SetFileBytes;
     Property IsLoaded: Boolean Read _loaded;
@@ -88,6 +90,7 @@ End;
 Constructor TAEApplicationSettings.Create(Const inSettingsFileName: String);
 Begin
   _settingsfilename := inSettingsFileName;
+  _checkchangedwhensaving := True;
   _destroying := False;
   _loading := False;
   _compressed := {$IFDEF DEBUG}False{$ELSE}True{$ENDIF};
@@ -169,7 +172,7 @@ Var
   json: TJSONObject;
   tb: TBytes;
 Begin
-  If Not Self.Changed Then
+  If _checkchangedwhensaving And Not Self.Changed Then
     Exit;
 
   json := Self.AsJSON;
