@@ -325,6 +325,8 @@ Begin
       Result := IDEVER_DELPHI11;
     23:
       Result := IDEVER_DELPHI12;
+    37:
+      Result := IDEVER_DELPHI13;
     Else
       Result := '';
   End;
