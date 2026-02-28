@@ -35,6 +35,7 @@ Type
     Property InternalDDETopic: String Read _ddetopic Write _ddetopic;
   public
     Class Function BDSRoot: String; Virtual;
+    Class Function ExeRegValueName: String; Virtual;
     Constructor Create(inOwner: TComponent; Const inExecutablePath: String; Const inVersionNumber: Integer; Const inDDEDiscoveryTimeout: Cardinal); ReIntroduce; Virtual;
     Property DDEANSIMode: Boolean Read _ddeansimode;
     Property DDEDiscoveryTimeout: Cardinal Read _ddediscoverytimeout Write SetDDEDiscoveryTimeout;
@@ -64,6 +65,13 @@ Type
     Function InternalGetName: String; Override;
   public
     Class Function BDSRoot: String; Override;
+  End;
+
+  TAEEmbarcaderoDelphiVersionX64 = Class(TAEEmbarcaderoDelphiVersion)
+  strict protected
+    Function InternalGetName: String; Override;
+  public
+    Class Function ExeRegValueName: String; Override;
   End;
 
   TAEDelphiVersions = Class(TAEIDEVersions)
@@ -208,6 +216,11 @@ Begin
   _ddetopic := 'system';
 end;
 
+Class Function TAEBorlandDelphiVersion.ExeRegValueName: String;
+Begin
+  Result := 'App';
+End;
+
 Function TAEBorlandDelphiVersion.InternalGetEdition: String;
 Begin
   Result := FileInfo(Self.ExecutablePath, 'ProductName');
@@ -335,6 +348,23 @@ Begin
 End;
 
 //
+// TAEEmbarcaderoDelphiVersionX64
+//
+
+Class Function TAEEmbarcaderoDelphiVersionX64.ExeRegValueName: String;
+Begin
+  Result := 'App x64';
+End;
+
+Function TAEEmbarcaderoDelphiVersionX64.InternalGetName: String;
+Begin
+  Result := inherited;
+
+  If Not Result.IsEmpty Then
+    Result := Result + ' x64';
+End;
+
+//
 // TAEDelphiVersions
 //
 
@@ -375,10 +405,10 @@ Begin
         // To avoid an exception in this case, try to validate it
 
         If Not Integer.TryParse(s.Substring(0, s.IndexOf('.')), vernumber) Or (vernumber < MINDELPHIVERSION) Or (vernumber > MAXDELPHIVERSION) Or
-           Not inRegistry.ValueExists('App') Then
+           Not inRegistry.ValueExists(inDelphiVersionClass.ExeRegValuename) Then
           Continue;
 
-        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString('App'), vernumber, _ddediscoverytimeout));
+        Self.AddVersion(inDelphiVersionClass.Create(Self, inRegistry.ReadString(inDelphiVersionClass.ExeRegValuename), vernumber, _ddediscoverytimeout));
       Finally
         inRegistry.CloseKey;
       End;
@@ -402,6 +432,7 @@ Begin
     DiscoverVersions(reg, TAEBorland2DelphiVersion);
     DiscoverVersions(reg, TAECodegearDelphiVersion);
     DiscoverVersions(reg, TAEEmbarcaderoDelphiVersion);
+    DiscoverVersions(reg, TAEEmbarcaderoDelphiVersionX64);
   Finally
     FreeAndNil(reg);
   End;

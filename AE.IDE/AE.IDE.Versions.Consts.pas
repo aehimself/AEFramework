@@ -25,7 +25,7 @@ Const
   IDEVER_DELPHI104 = 'Embarcadero Delphi 10.4 Sydney';
   IDEVER_DELPHI11 = 'Embarcadero Delphi 11 Alexandria';
   IDEVER_DELPHI12 = 'Embarcadero Delphi 12 Athens';
-  IDEVER_DELPHI13 = 'Embarcadero Delphi 13 Alexandria';
+  IDEVER_DELPHI13 = 'Embarcadero Delphi 13 Florence';
 
   IDEVER_VS2005 = 'Microsoft Visual Studio 2005';
   IDEVER_VS2008 = 'Microsoft Visual Studio 2008';
