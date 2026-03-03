@@ -121,9 +121,14 @@ Type
 
 Implementation
 
-Uses WinApi.Messages, WinApi.PsAPI, AE.Misc.FileUtils;
+Uses WinApi.Messages, WinApi.PsAPI, AE.Misc.FileUtils, System.Generics.Defaults;
 
-//
+Function TAEIDEVersionComparer(Const A, B: TAEIDEVersion): Integer;
+Begin
+  Result := -1 * CompareStr(A.Name, B.Name);
+End;
+
+    //
 // TDelphiInstance
 //
 
@@ -471,6 +476,8 @@ End;
 Function TAEIDEVersions.GetInstalledVersions: TArray<TAEIDEVersion>;
 Begin
   Result := _versions.ToArray;
+
+  TArray.Sort<TAEIDEVersion>(Result, TComparer<TAEIDEVersion>.Construct(TAEIDEVersionComparer));
 End;
 
 Procedure TAEIDEVersions.InternalRefreshInstalledVersions;
