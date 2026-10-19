@@ -13,6 +13,8 @@ Interface
 Uses System.Classes, WinApi.Windows, System.SysUtils, System.Generics.Collections;
 
 Type
+  TAEIDEArchitecture = ( iaUnknown, ia32bit, ia64bit );
+
   TAEIDEInstance = Class(TComponent)
   strict private
     _abortopenfile: Boolean;
@@ -59,6 +61,7 @@ Type
   TAEIDEVersion = Class(TComponent)
   strict private
     _abortnewinstance: Boolean;
+    _architecture: TAEIDEArchitecture;
     _edition: String;
     _executablepath: String;
     _executableversion: TAEIDEExecutableVersion;
@@ -69,6 +72,7 @@ Type
   strict protected
     Procedure AddInstance(Const inInstance: TAEIDEInstance);
     Procedure InternalRefreshInstances; Virtual;
+    Function InternalGetArchitecture: TAEIDEArchitecture; Virtual;
     Function InternalGetEdition: String; Virtual;
     Function InternalGetExecutableVersion: TAEIDEExecutableVersion; Virtual;
     Function InternalGetName: String; Virtual;
@@ -83,6 +87,7 @@ Type
     Function InstanceByPID(Const inPID: Cardinal): TAEIDEInstance;
     Function IsRunning: Boolean;
     Function NewIDEInstance(Const inParams: String = ''): TAEIDEInstance;
+    Property Architecture: TAEIDEArchitecture Read _architecture;
     Property Edition: String Read _edition;
     Property ExecutablePath: String Read _executablepath;
     Property ExecutableVersion: TAEIDEExecutableVersion Read _executableversion;
@@ -276,6 +281,7 @@ Begin
   _edition := Self.InternalGetEdition;
   _executableversion := Self.InternalGetExecutableVersion;
   _name := Self.InternalGetName;
+  _architecture := Self.InternalGetArchitecture;
 
   If _name.IsEmpty Then
     _name := 'IDE v' + _versionnumber.ToString;
@@ -288,6 +294,7 @@ Begin
   inherited Create(inOwner);
 
   _abortnewinstance := False;
+  _architecture := iaUnknown;
   _edition := '';
   _executablepath := inExecutablePath.Trim;
   _executableversion := nil;
@@ -326,6 +333,68 @@ End;
 Procedure TAEIDEVersion.InternalRefreshInstances;
 Begin
   // Dummy
+End;
+
+Function TAEIDEVersion.InternalGetArchitecture: TAEIDEArchitecture;
+Const
+  MZSIG: Array[0..1] Of Byte = ($4D, $5A);
+  PESIG: Array[0..3] Of Byte = ($50, $45, $00, $00);
+Var
+  fs: TFileStream;
+  buf: Array[0..3] Of Byte;
+  offset: UInt32;
+  machine: Word;
+begin
+  Result := iaUnknown;
+
+  // Read the executables PE header.
+  // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+
+  fs := TFileStream.Create(Self.ExecutablePath, fmOpenRead Or fmShareDenyNone);
+  Try
+    // 0x3c + 4 byte COFF header location
+    If fs.Size < 64 Then
+      Exit;
+
+    fs.Position := 0;
+    fs.ReadBuffer(buf, 2);
+
+    If Not CompareMem(@buf[0], @MZSIG[0], SizeOf(MZSIG)) Then
+      Exit;
+
+    // At location 0x3c, the stub has the file offset to the PE signature.
+    fs.Position := $3C;
+    fs.ReadBuffer(buf, 4);
+
+    offset := UInt32(buf[0]) Or (UInt32(buf[1]) Shl 8) Or (UInt32(buf[2]) Shl 16) Or (UInt32(buf[3]) Shl 24);
+
+    If fs.Size < offset + 4 Then
+      Exit;
+
+    fs.Position := offset;
+    fs.ReadBuffer(buf, 4);
+
+    // Check PE signature
+    If Not CompareMem(@buf[0], @PESIG[0], SizeOf(PESIG)) Then
+      Exit;
+
+    // Offset 0, size 2, Field Machine.
+    // The number that identifies the type of target machine. For more information, see Machine Types.
+
+    fs.ReadBuffer(buf, 2);
+
+    machine := Word(buf[0]) Or (Word(buf[1]) Shl 8);
+
+    // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#machine-types
+    Case machine Of
+      $014C:
+        Result := ia32bit;
+      $8664:
+        Result := ia64bit;
+    End;
+  Finally
+    FreeAndNil(fs);
+  End;
 End;
 
 Function TAEIDEVersion.InternalGetEdition: String;
